@@ -1,0 +1,1 @@
+export const $=(s,e=document)=>e.querySelector(s); export const $$=(s,e=document)=>Array.from(e.querySelectorAll(s));
