@@ -1,0 +1,83 @@
+
+<!doctype html><html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>سين جيم • الحِزم</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script type="module">
+    import { activateTab, store, PACKS_KEY, ACTIVE_PACK_KEY, QUESTIONS_KEY } from "assets/app.js";
+    function render(){
+      const list = document.getElementById('packsList'); list.innerHTML='';
+      const packs = store.get(PACKS_KEY,[]);
+      const active = store.get(ACTIVE_PACK_KEY,'default');
+      document.getElementById('selectedPackTag').textContent = (packs.find(p=>p.id===active)?.name)||'الافتراضية';
+      packs.forEach(p=>{
+        const row = document.createElement('div'); row.className='list-item';
+        const isActive = p.id===active;
+        row.innerHTML = `<span>${p.name} ${isActive?'<span class="tag">مستخدمة</span>':''}</span>
+          <span class="row">
+            ${!isActive?`<button class="btn" data-activate="${p.id}">استخدام</button>`:''}
+            ${p.id!=='default'?`<button class="btn danger" data-delete="${p.id}">حذف</button>`:''}
+          </span>`;
+        list.appendChild(row);
+      });
+      list.querySelectorAll('[data-activate]').forEach(b=>{
+        b.addEventListener('click', ()=>{ store.set(ACTIVE_PACK_KEY, b.dataset.activate); render(); });
+      });
+      list.querySelectorAll('[data-delete]').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          const id = b.dataset.delete;
+          if(!confirm('حذف هذه الحزمة؟')) return;
+          const packs = store.get(PACKS_KEY,[]).filter(p=>p.id!==id);
+          store.set(PACKS_KEY, packs);
+          const qs = store.get(QUESTIONS_KEY,[]).filter(q=>q.pack!==id);
+          store.set(QUESTIONS_KEY, qs);
+          if(store.get(ACTIVE_PACK_KEY,'default')===id) store.set(ACTIVE_PACK_KEY,'default');
+          render();
+        });
+      });
+    }
+    window.addEventListener('DOMContentLoaded', ()=>{
+      activateTab('/packs.html');
+      document.getElementById('createPackBtn').addEventListener('click', ()=>{
+        const name = (document.getElementById('packNameInput').value||'').trim();
+        if(!name) return;
+        const id = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'pack-'+Date.now();
+        const all = store.get(PACKS_KEY,[]);
+        if(all.some(p=>p.id===id)) { alert('اسم الحزمة موجود'); return; }
+        all.push({id,name}); store.set(PACKS_KEY, all);
+        document.getElementById('packNameInput').value=''; render();
+      });
+      render();
+    });
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <nav class="tabs" id="tabs">
+        <a class="tab" href="index.html">الرئيسية</a>
+        <a class="tab" href="game.html">اللعبة</a>
+        <a class="tab" href="settings.html">الإعدادات</a>
+        <a class="tab" href="questions.html">الأسئلة</a>
+        <a class="tab active" href="packs.html">الحِزم</a>
+      </nav>
+      <div class="spacer"></div>
+      <div class="brand">🎮 سين جيم</div>
+    </div>
+  </header>
+  <main class="container">
+    <div class="card">
+      <h2>الحِزم</h2>
+      <p class="hint">أنشئ مجموعات الأسئلة واختر واحدة للاستخدام.</p>
+      <div class="grid cols-2">
+        <label>اسم الحزمة <input id="packNameInput" class="input" placeholder="مثال: ثقافة عامة"></label>
+        <div class="row" style="align-items:flex-end"><button class="btn primary" id="createPackBtn">إنشاء</button></div>
+      </div>
+      <h3 style="margin-top:18px">حِزمُك <span class="tag" id="selectedPackTag">الافتراضية</span></h3>
+      <div id="packsList" class="list"></div>
+    </div>
+  </main>
+  <footer><span>سين جيم • الحِزم</span></footer>
+  <script type="module">import "assets/app.js";</script>
+</body></html>

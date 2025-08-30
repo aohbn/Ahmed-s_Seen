@@ -1,0 +1,82 @@
+
+<!doctype html><html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>سين جيم • اللعبة</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script type="module">
+    import { activateTab, store, SETTINGS_KEY, QUESTIONS_KEY, ACTIVE_PACK_KEY, PACKS_KEY } from "assets/app.js";
+    let settings, selectedPackName='الافتراضية';
+    function pickQuestion(){
+      const packId = store.get(ACTIVE_PACK_KEY,'default');
+      const arr = store.get(QUESTIONS_KEY,[]).filter(x=>x.pack===packId);
+      const meta = document.getElementById('questionMeta');
+      if(!arr.length){
+        document.getElementById('questionText').textContent = 'لا توجد أسئلة في هذه الحزمة.';
+        meta.textContent = '';
+        document.getElementById('answerText').style.display = 'none';
+        return;
+      }
+      const i = Math.floor(Math.random()*arr.length);
+      const item = arr[i];
+      document.getElementById('questionText').textContent = item.q;
+      document.getElementById('answerText').textContent = item.a;
+      document.getElementById('answerText').style.display = 'none';
+      meta.textContent = `حزمة: ${selectedPackName} • ${settings.difficulty} • ${settings.roundTime}s`;
+    }
+    window.addEventListener('DOMContentLoaded', ()=>{
+      activateTab('/game.html');
+      settings = store.get(SETTINGS_KEY,{players:2,roundTime:60,difficulty:'normal'});
+      const packs = store.get(PACKS_KEY,[]);
+      const active = store.get(ACTIVE_PACK_KEY,'default');
+      selectedPackName = (packs.find(p=>p.id===active)?.name) || 'الافتراضية';
+      document.getElementById('nextQBtn').addEventListener('click', pickQuestion);
+      document.getElementById('showAnswerBtn').addEventListener('click', ()=>{
+        const el = document.getElementById('answerText');
+        el.style.display = (el.style.display==='none' ? 'inline-flex' : 'none');
+      });
+      document.getElementById('endBtn').addEventListener('click', ()=>location.href='index.html');
+      pickQuestion();
+    });
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <nav class="tabs" id="tabs">
+        <a class="tab" href="index.html">الرئيسية</a>
+        <a class="tab active" href="game.html">اللعبة</a>
+        <a class="tab" href="settings.html">الإعدادات</a>
+        <a class="tab" href="questions.html">الأسئلة</a>
+        <a class="tab" href="packs.html">الحِزم</a>
+      </nav>
+      <div class="spacer"></div>
+      <div class="brand">🎮 سين جيم</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2>اللعبة</h2>
+        <div class="row">
+          <button class="btn" id="pauseBtn" onclick="alert('إيقاف مؤقت')">إيقاف مؤقت</button>
+          <button class="btn danger" id="endBtn">إنهاء</button>
+        </div>
+      </div>
+      <p class="hint">عرض اللعبة فقط.</p>
+      <div class="card" style="background:rgba(255,255,255,.03)">
+        <h3 id="questionText">اضغط «السؤال التالي» للبدء</h3>
+        <p class="hint" id="questionMeta"></p>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="nextQBtn">السؤال التالي</button>
+        <button class="btn" id="showAnswerBtn">إظهار الإجابة</button>
+        <span id="answerText" class="tag" style="display:none"></span>
+      </div>
+    </div>
+  </main>
+
+  <footer><span>سين جيم • اللعبة</span></footer>
+  <script type="module">import "assets/app.js";</script>
+</body></html>
