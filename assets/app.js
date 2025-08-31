@@ -1,5 +1,4 @@
 
-// ----- storage keys -----
 export const SETTINGS_KEY   = "sj:settings";
 export const QUESTIONS_KEY  = "sj:questions";
 export const PACKS_KEY      = "sj:packs";
@@ -22,7 +21,6 @@ export const store = {
   if(!store.get(SCORE_KEY,null))       store.set(SCORE_KEY, { A:0, B:0, turn:'A' });
 })();
 
-// ----- packs & questions -----
 export function listPacks(){ return store.get(PACKS_KEY,[]); }
 export function listQuestions(){ return store.get(QUESTIONS_KEY,[]); }
 export function questionsByPack(packId){ return listQuestions().filter(q=>q.pack===packId); }
@@ -47,14 +45,11 @@ export function deleteAll(){
 export function deleteQuestion(id){
   store.set(QUESTIONS_KEY, listQuestions().filter(q=>q.id!==id));
 }
-
 export function addQuestion(q){
   const id = 'q_'+Date.now()+'_'+Math.floor(Math.random()*1e6);
   const item = { id, pack:q.pack||'default', category:q.category||'غير مصنفة', level:Number(q.level||100), q:String(q.q??'').trim(), a:String(q.a??'').trim(), img:q.img||null };
   const arr = listQuestions(); arr.push(item); store.set(QUESTIONS_KEY, arr); return item;
 }
-
-// ----- game state -----
 export function getTeamNames(){ return store.get(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' }); }
 export function setTeamNames(n){ store.set(TEAM_NAMES_KEY, { teamA:n.teamA||'الفريق 1', teamB:n.teamB||'الفريق 2' }); }
 export function getScores(){ return store.get(SCORE_KEY, {A:0,B:0,turn:'A'}); }
@@ -62,14 +57,12 @@ export function setScores(s){ store.set(SCORE_KEY, s); }
 export function setSelectedCategories(cats){ store.set(SELECTED_CATS_KEY, cats||[]); }
 export function getSelectedCategories(){ return store.get(SELECTED_CATS_KEY, []); }
 
-// ----- import/export -----
 export function exportAll(){
   const payload = { settings: store.get(SETTINGS_KEY,{}), packs: listPacks(), questions: listQuestions() };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'seen-jeem-export.json'; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
 }
-
 export async function importAllFromFile(file, mode='merge'){ const text = await file.text(); return importAllFromText(text, mode); }
 export function importAllFromText(text, mode='merge'){
   const data = JSON.parse(text);
@@ -87,7 +80,7 @@ export function importAllFromText(text, mode='merge'){
   return true;
 }
 
-// ----- normalizer (supports v6.5 and many keys) -----
+// normalizer
 function normalize(d){
   if (Array.isArray(d?.questions) && Array.isArray(d?.packs)) {
     return { packs: d.packs.map(p=>({id:p.id||slugify(p.name||'pack')+'-'+Math.random().toString(36).slice(2,6), name:p.name||'بدون اسم', category:p.category||p.cat||null})),

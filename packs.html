@@ -6,9 +6,18 @@
 
   function groupByCategory(packs){ const m=new Map(); packs.forEach(p=>{ const k=p.category||'غير مصنفة'; if(!m.has(k)) m.set(k,[]); m.get(k).push(p); }); return m; }
 
-  function render(){ const root=document.getElementById('packsGrouped'); root.innerHTML=''; const packs=listPacks(); const grouped=groupByCategory(packs); if(!packs.length){ root.innerHTML='<div class="hint">لا توجد حِزم بعد.</div>'; return; } grouped.forEach((arr,cat)=>{ const card=document.createElement('div'); card.className='card'; card.innerHTML=`<div class="row" style="justify-content:space-between"><h3 class="cat-title" data-cat="\${cat}">\${cat}</h3><div class="row"><button class="btn danger del-cat" data-cat="\${cat}">حذف الفئة</button></div></div><div class="list packs" data-cat="\${cat}"></div>`; const list=card.querySelector('.list.packs'); arr.forEach(p=>{ const count=questionsByPack(p.id).length; const row=document.createElement('div'); row.className='list-item'; row.innerHTML=`<span>\${p.name}</span><div class="row"><span class="tag">\${count} سؤال</span><button class="btn view-pack" data-id="\${p.id}">عرض الأسئلة</button><button class="btn danger del-pack" data-id="\${p.id}">حذف</button></div>`; list.appendChild(row); }); root.appendChild(card); }); }
+  function render(){ const root=document.getElementById('packsGrouped'); root.innerHTML=''; const packs=listPacks(); const grouped=groupByCategory(packs); if(!packs.length){ root.innerHTML='<div class="hint">لا توجد حِزم بعد.</div>'; return; } grouped.forEach((arr,cat)=>{ const card=document.createElement('div'); card.className='card'; card.appendChild(catHeader(cat)); const list=document.createElement('div'); list.className='list packs'; list.dataset.cat=cat; arr.forEach(p=> list.appendChild(packRow(p)) ); card.appendChild(list); root.appendChild(card); }); }
 
-  function showPackQuestions(packId){ const qs = questionsByPack(packId); const modal=document.getElementById('qModal'); const list=document.getElementById('qList'); list.innerHTML=''; if(!qs.length) list.innerHTML='<div class="hint">لا أسئلة.</div>'; qs.forEach(q=>{ const li=document.createElement('div'); li.className='list-item'; li.innerHTML=`<div style="max-width:70%"><div style="font-weight:700">[\${q.level}]</div><div>\${q.q?.slice(0,200)||''}</div><div class="hint">الإجابة: \${q.a?.slice(0,120)||''}</div></div><button class="btn danger del-q" data-qid="\${q.id}">حذف السؤال</button>`; list.appendChild(li); }); modal.style.display='grid'; modal.dataset.packId=packId; }
+  function catHeader(cat){ const head=document.createElement('div'); head.className='row'; head.style.justifyContent='space-between'; const h=document.createElement('h3'); h.textContent=cat; h.className='cat-title'; h.dataset.cat=cat; const controls=document.createElement('div'); controls.className='row'; const del=document.createElement('button'); del.className='btn danger del-cat'; del.dataset.cat=cat; del.type='button'; del.textContent='حذف الفئة'; controls.appendChild(del); head.appendChild(h); head.appendChild(controls); return head; }
+
+  function packRow(p){ const row=document.createElement('div'); row.className='list-item'; const left=document.createElement('span'); left.textContent=p.name; const right=document.createElement('div'); right.className='row';
+    const tag=document.createElement('span'); tag.className='tag'; tag.textContent=(questionsByPack(p.id).length)+' سؤال';
+    const view=document.createElement('button'); view.className='btn view-pack'; view.dataset.id=p.id; view.type='button'; view.textContent='عرض الأسئلة';
+    const del=document.createElement('button'); del.className='btn danger del-pack'; del.dataset.id=p.id; del.type='button'; del.textContent='حذف';
+    right.appendChild(tag); right.appendChild(view); right.appendChild(del);
+    row.appendChild(left); row.appendChild(right); return row; }
+
+  function showPackQuestions(packId){ const qs = questionsByPack(packId); const modal=document.getElementById('qModal'); const list=document.getElementById('qList'); list.innerHTML=''; if(!qs.length) list.innerHTML='<div class="hint">لا أسئلة.</div>'; qs.forEach(q=>{ const li=document.createElement('div'); li.className='list-item'; const content=document.createElement('div'); content.style.maxWidth='70%'; const lvl=document.createElement('div'); lvl.style.fontWeight='700'; lvl.textContent='['+q.level+']'; const body=document.createElement('div'); body.textContent=(q.q||'').slice(0,200); const ans=document.createElement('div'); ans.className='hint'; ans.textContent='الإجابة: '+(q.a||''); content.appendChild(lvl); content.appendChild(body); content.appendChild(ans); const del=document.createElement('button'); del.className='btn danger del-q'; del.dataset.qid=q.id; del.type='button'; del.textContent='حذف السؤال'; li.appendChild(content); li.appendChild(del); list.appendChild(li); }); modal.style.display='grid'; modal.dataset.packId=packId; }
 
   document.addEventListener('DOMContentLoaded',()=>{ render();
     document.getElementById('createBtn').onclick=()=>{ const n=(document.getElementById('packName').value||'').trim(); const c=(document.getElementById('packCat').value||'').trim()||'غير مصنفة'; if(!n) return; addPack(n,c); document.getElementById('packName').value=''; render(); };
@@ -19,7 +28,6 @@
     const fileInput=document.getElementById('importFile'); document.getElementById('importMerge').onclick=()=>{ fileInput.dataset.mode='merge'; fileInput.value=''; fileInput.click(); }; document.getElementById('importReplace').onclick=()=>{ fileInput.dataset.mode='replace'; fileInput.value=''; fileInput.click(); };
     fileInput.onchange=async()=>{ if(!fileInput.files.length) return; const mode=fileInput.dataset.mode||'merge'; try{ await importAllFromFile(fileInput.files[0], mode); document.getElementById('status').textContent='✓ تم الاستيراد'; render(); }catch(e){ document.getElementById('status').textContent='فشل: '+e.message; } };
 
-    // Robust event delegation (works even if you click a child element)
     document.addEventListener('click',e=>{ 
       const delPackBtn = e.target.closest('button.del-pack'); if(delPackBtn){ if(confirm('حذف الحزمة؟')){ deletePack(delPackBtn.dataset.id); render(); } return; }
       const delCatBtn = e.target.closest('button.del-cat'); if(delCatBtn){ if(confirm('حذف كل حِزم هذه الفئة وكل أسئلتها؟')){ deleteCategory(delCatBtn.dataset.cat); render(); } return; }
@@ -40,27 +48,27 @@
 <main class="container">
   <div class="grid cols-2">
     <div class="card">
-      <h2>إنشاء حزمة</h2>
-      <div class="grid cols-2">
-        <label>اسم الحزمة <input id="packName" class="input" placeholder="مثال: عواصم"></label>
-        <label>الفئة <input id="packCat" class="input" placeholder="مثال: جغرافيا"></label>
-      </div>
-      <div class="row" style="margin-top:8px"><button class="btn primary" id="createBtn" type="button">إنشاء</button></div>
-      <h3 style="margin-top:14px">حِزمك حسب الفئة</h3>
-      <div id="packsGrouped"></div>
-    </div>
-    <div class="card">
       <h2>استيراد/تصدير</h2>
       <p class="hint">يدعم JSON المسطح وشكل v6.5. تُسند الفئة تلقائيًا عند غيابها.</p>
       <div class="row">
         <input type="file" id="importFile" accept="application/json,.json" class="input" style="max-width:280px">
         <button class="btn" id="importMerge" type="button">استيراد (دمج)</button>
         <button class="btn danger" id="importReplace" type="button">استيراد (استبدال)</button>
-        <button class="btn" id="exportBtn" type="button">تصدير JSON</button>
+        <button class="btn" id="exportBtn" type="button">JSON تصدير</button>
         <button class="btn danger" id="wipeBtn" type="button">حذف كل الحِزم</button>
         <button class="btn" id="resetLS" type="button">تفريغ البيانات</button>
         <span class="hint" id="status"></span>
       </div>
+    </div>
+    <div class="card">
+      <h2>إنشاء حزمة</h2>
+      <div class="grid cols-2">
+        <label>الفئة <input id="packCat" class="input" placeholder="مثال: جغرافيا"></label>
+        <label>اسم الحزمة <input id="packName" class="input" placeholder="مثال: عواصم"></label>
+      </div>
+      <div class="row" style="margin-top:8px"><button class="btn primary" id="createBtn" type="button">إنشاء</button></div>
+      <h3 style="margin-top:14px">حِزمك حسب الفئة</h3>
+      <div id="packsGrouped"></div>
     </div>
   </div>
 </main>
