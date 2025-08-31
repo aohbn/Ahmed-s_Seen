@@ -20,8 +20,10 @@ export const store = {
   if(!store.get(SCORE_KEY,null))       store.set(SCORE_KEY, { A:0, B:0, turn:'A' });
 })();
 
+// Packs & Questions
 export function listPacks(){ return store.get(PACKS_KEY,[]); }
 export function listQuestions(){ return store.get(QUESTIONS_KEY,[]); }
+export function questionsByPack(packId){ return listQuestions().filter(q=>q.pack===packId); }
 export function addPack(name, category){
   const id = slugify(name)+'-'+Math.random().toString(36).slice(2,6);
   const packs = listPacks(); packs.push({ id, name, category: category||'غير مصنفة' }); store.set(PACKS_KEY, packs);
@@ -35,6 +37,9 @@ export function deleteCategory(cat){
   store.set(PACKS_KEY, listPacks().filter(p=>p.category!==cat));
   store.set(QUESTIONS_KEY, listQuestions().filter(q=>q.category!==cat));
 }
+export function deleteQuestion(id){
+  store.set(QUESTIONS_KEY, listQuestions().filter(q=>q.id!==id));
+}
 
 export function addQuestion(q){
   const id = 'q_'+Date.now()+'_'+Math.floor(Math.random()*1e6);
@@ -42,6 +47,7 @@ export function addQuestion(q){
   const arr = listQuestions(); arr.push(item); store.set(QUESTIONS_KEY, arr); return item;
 }
 
+// Game state
 export function getTeamNames(){ return store.get(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' }); }
 export function setTeamNames(n){ store.set(TEAM_NAMES_KEY, { teamA:n.teamA||'الفريق 1', teamB:n.teamB||'الفريق 2' }); }
 export function getScores(){ return store.get(SCORE_KEY, {A:0,B:0,turn:'A'}); }
@@ -70,7 +76,6 @@ export function importAllFromText(text, mode='merge'){
   }
   const cats = Array.from(new Set(conv.questions.map(q=>q.category))).slice(0,6);
   if(cats.length) setSelectedCategories(cats);
-  // Import debug count in console
   console.log('Imported packs:', conv.packs.length, 'questions:', conv.questions.length);
   return true;
 }
