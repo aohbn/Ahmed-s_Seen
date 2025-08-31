@@ -1,31 +1,58 @@
+
 <!doctype html><html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>سين جيم • الإعدادات</title>
   <link rel="stylesheet" href="assets/style.css">
+  <script type="module">
+    import { activateTab, store, SETTINGS_KEY } from "./assets/app.js";
+    window.addEventListener('DOMContentLoaded', ()=>{
+      activateTab('settings.html');
+      const settings = store.get(SETTINGS_KEY,{players:2,roundTime:60,difficulty:'normal'});
+      const players = document.getElementById('players');
+      const time = document.getElementById('time');
+      const diff = document.getElementById('diff');
+      function render(){ players.value=settings.players; time.value=settings.roundTime; diff.value=settings.difficulty; }
+      render();
+      document.getElementById('save').onclick = ()=>{
+        settings.players = Math.max(1, Number(players.value||1));
+        settings.roundTime = Math.max(10, Number(time.value||60));
+        settings.difficulty = diff.value||'normal';
+        store.set(SETTINGS_KEY, settings); alert('تم الحفظ');
+      };
+    });
+  </script>
 </head>
 <body>
   <header class="nav">
     <div class="container nav-inner">
-      <nav class="tabs" id="tabs">
+      <nav class="tabs">
         <a class="tab" href="index.html">الرئيسية</a>
-        <a class="tab" href="game.html">اللعبة</a>
-        <a class="tab active" href="settings.html">الإعدادات</a>
         <a class="tab" href="packs.html">الحِزم</a>
-        <a class="tab" href="board.html">لوحة v6.5</a>
+        <a class="tab" href="questions.html">الأسئلة</a>
+        <a class="tab" href="game.html">البدء</a>
+        <a class="tab active" href="settings.html">الإعدادات</a>
       </nav>
       <div class="spacer"></div>
       <div class="brand">🎮 سين جيم</div>
     </div>
   </header>
   <main class="container">
-    
-<div class="card">
-  <h2>إعدادات أساسية</h2>
-  <p class="hint">الإعدادات التفصيلية داخل لوحة v6.5.</p>
-</div>
-
+    <div class="card">
+      <h2>إعدادات اللعبة</h2>
+      <div class="grid cols-3">
+        <label>عدد اللاعبين <input id="players" type="number" min="1" class="input"></label>
+        <label>مدة الجولة (ثوانٍ) <input id="time" type="number" min="10" step="5" class="input"></label>
+        <label>الصعوبة
+          <select id="diff" class="input">
+            <option value="easy">سهل</option>
+            <option value="normal" selected>عادي</option>
+            <option value="hard">صعب</option>
+          </select>
+        </label>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="btn primary" id="save">حفظ</button></div>
+    </div>
   </main>
-  <footer><span>سين جيم • متعدد الصفحات</span></footer>
-  <script type="module">import "assets/app.js";</script>
+  <footer><span>سين جيم • الإعدادات</span></footer>
 </body></html>

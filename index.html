@@ -1,46 +1,48 @@
+
 <!doctype html><html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>سين جيم • الرئيسية</title>
   <link rel="stylesheet" href="assets/style.css">
+  <script type="module">
+    import { activateTab } from "./assets/app.js";
+    window.addEventListener('DOMContentLoaded', ()=>{ activateTab('index.html'); });
+  </script>
 </head>
 <body>
   <header class="nav">
     <div class="container nav-inner">
-      <nav class="tabs" id="tabs">
+      <nav class="tabs">
         <a class="tab active" href="index.html">الرئيسية</a>
-        <a class="tab" href="game.html">اللعبة</a>
-        <a class="tab" href="settings.html">الإعدادات</a>
         <a class="tab" href="packs.html">الحِزم</a>
-        <a class="tab" href="board.html">لوحة v6.5</a>
+        <a class="tab" href="questions.html">الأسئلة</a>
+        <a class="tab" href="game.html">البدء</a>
+        <a class="tab" href="settings.html">الإعدادات</a>
       </nav>
       <div class="spacer"></div>
       <div class="brand">🎮 سين جيم</div>
     </div>
   </header>
   <main class="container">
-    
-<div class="grid cols-2">
-  <div class="card">
-    <h2>مرحبًا</h2>
-    <p class="hint">ابدأ اللعبة الخفيفة أو افتح لوحة v6.5 للإدارة الكاملة (استيراد/تصدير JSON، صور الأسئلة...).</p>
-    <div class="row" style="margin-top:12px">
-      <a class="btn primary" href="board.html">لوحة v6.5 (كاملة)</a>
-      <a class="btn" href="game.html">نسخة خفيفة للعرض</a>
-      <a class="btn" href="settings.html">الإعدادات</a>
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>أهلاً بك</h2>
+        <p class="hint">هذه النسخة مدمجة بالكامل — كل أدوات v6.5 داخل الصفحات أدناه.</p>
+        <div class="row" style="margin-top:12px">
+          <a class="btn primary" href="packs.html">إدارة الحِزم</a>
+          <a class="btn" href="questions.html">تحرير الأسئلة</a>
+          <a class="btn" href="game.html">ابدأ اللعبة</a>
+        </div>
+      </div>
+      <div class="card">
+        <h3>ملاحظات سريعة</h3>
+        <div class="list">
+          <div class="list-item"><span>الاستيراد/التصدير</span><span class="tag">من صفحة الحِزم</span></div>
+          <div class="list-item"><span>الصور</span><span class="tag">داخل صفحة الأسئلة</span></div>
+          <div class="list-item"><span>اختيار الفئات</span><span class="tag">داخل صفحة البدء</span></div>
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="card">
-    <h3>ملاحظات</h3>
-    <div class="list">
-      <div class="list-item"><span>الاستيراد</span><span class="tag">ملف JSON</span></div>
-      <div class="list-item"><span>الاستبدال</span><span class="tag">اضغط Alt أثناء الاستيراد</span></div>
-      <div class="list-item"><span>الصور</span><span class="tag">رفع أو رابط مباشر</span></div>
-    </div>
-  </div>
-</div>
-
   </main>
-  <footer><span>سين جيم • متعدد الصفحات</span></footer>
-  <script type="module">import "assets/app.js";</script>
+  <footer><span>سين جيم • نسخة متكاملة</span></footer>
 </body></html>

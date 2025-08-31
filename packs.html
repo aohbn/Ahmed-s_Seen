@@ -1,32 +1,98 @@
+
 <!doctype html><html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>سين جيم • الحِزم</title>
   <link rel="stylesheet" href="assets/style.css">
+  <script type="module">
+    import { activateTab, listPacks, addPack, deletePack, setActivePack, activePack, exportAll, importAllFromFile } from "./assets/app.js";
+
+    function render(){
+      const cont = document.getElementById('packsList');
+      cont.innerHTML='';
+      const packs = listPacks();
+      const active = activePack();
+      packs.forEach(p=>{
+        const row = document.createElement('div'); row.className='list-item';
+        row.innerHTML = \`
+          <span>\${p.name} \${p.id===active?'<span class="tag">مستخدمة</span>':''}</span>
+          <span class="row">
+            \${p.id!==active?'<button class="btn" data-use="'+p.id+'">استخدام</button>':''}
+            \${p.id!=='default'?'<button class="btn danger" data-del="'+p.id+'">حذف</button>':''}
+          </span>\`;
+        cont.appendChild(row);
+      });
+      cont.querySelectorAll('[data-use]').forEach(b=> b.onclick = ()=>{ setActivePack(b.dataset.use); render(); });
+      cont.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{
+        if(!confirm('حذف الحزمة بما فيها من أسئلة؟')) return;
+        try { deletePack(b.dataset.del); render(); } catch(e){ alert(e.message); }
+      });
+      document.getElementById('activeName').textContent = packs.find(x=>x.id===active)?.name || '—';
+    }
+
+    window.addEventListener('DOMContentLoaded', ()=>{
+      activateTab('packs.html');
+      render();
+
+      document.getElementById('createBtn').onclick = ()=>{
+        const name = (document.getElementById('packName').value||'').trim();
+        if(!name) return;
+        try { addPack(name); document.getElementById('packName').value=''; render(); } catch(e){ alert(e.message); }
+      };
+
+      document.getElementById('exportBtn').onclick = exportAll;
+
+      const fileInput = document.getElementById('importFile');
+      document.getElementById('importMerge').onclick = ()=> fileInput.click();
+      document.getElementById('importReplace').onclick = ()=> { fileInput.dataset.mode='replace'; fileInput.click(); };
+      fileInput.onchange = async ()=>{
+        if(!fileInput.files.length) return;
+        const mode = fileInput.dataset.mode==='replace' ? 'replace' : 'merge';
+        try { await importAllFromFile(fileInput.files[0], mode); alert('تم الاستيراد ('+ (mode==='replace'?'استبدال':'دمج') +')'); render(); }
+        catch(e){ alert('فشل الاستيراد: '+ e.message); }
+        finally { fileInput.value=''; fileInput.dataset.mode='merge'; }
+      };
+    });
+  </script>
 </head>
 <body>
   <header class="nav">
     <div class="container nav-inner">
-      <nav class="tabs" id="tabs">
+      <nav class="tabs">
         <a class="tab" href="index.html">الرئيسية</a>
-        <a class="tab" href="game.html">اللعبة</a>
-        <a class="tab" href="settings.html">الإعدادات</a>
         <a class="tab active" href="packs.html">الحِزم</a>
-        <a class="tab" href="board.html">لوحة v6.5</a>
+        <a class="tab" href="questions.html">الأسئلة</a>
+        <a class="tab" href="game.html">البدء</a>
+        <a class="tab" href="settings.html">الإعدادات</a>
       </nav>
       <div class="spacer"></div>
       <div class="brand">🎮 سين جيم</div>
     </div>
   </header>
-  <main class="container">
-    
-<div class="card">
-  <h2>إدارة الحِزم (مختصر)</h2>
-  <p class="hint">الإدارة الكاملة (إنشاء/نسخ/حذف + استيراد/تصدير) من لوحة v6.5.</p>
-  <div class="row" style="margin-top:10px"><a class="btn" href="board.html">فتح لوحة v6.5</a></div>
-</div>
 
+  <main class="container">
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>الحزمة النشطة: <span class="tag" id="activeName">—</span></h2>
+        <div class="grid cols-2">
+          <label>اسم الحزمة <input id="packName" class="input" placeholder="مثال: ثقافة عامة"></label>
+          <div class="row" style="align-items:flex-end"><button class="btn primary" id="createBtn">إنشاء</button></div>
+        </div>
+        <h3 style="margin-top:14px">حِزمك</h3>
+        <div id="packsList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h3>استيراد/تصدير</h3>
+        <p class="hint">ملف JSON يتضمن (الإعدادات + الحِزم + الأسئلة).</p>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="exportBtn">تصدير JSON</button>
+          <button class="btn" id="importMerge">استيراد (دمج)</button>
+          <button class="btn danger" id="importReplace">استيراد (استبدال)</button>
+          <input type="file" id="importFile" accept="application/json" style="display:none" data-mode="merge">
+        </div>
+      </div>
+    </div>
   </main>
-  <footer><span>سين جيم • متعدد الصفحات</span></footer>
-  <script type="module">import "assets/app.js";</script>
+  <footer><span>سين جيم • الحِزم</span></footer>
 </body></html>
