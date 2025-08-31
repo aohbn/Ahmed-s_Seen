@@ -1,16 +1,37 @@
-
-<!doctype html><html lang="ar" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>سين جيم • البدء</title><link rel="stylesheet" href="assets/style.css"></head>
+<!doctype html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سين جيم • البدء</title><link rel="stylesheet" href="/assets/style.css">
+<style>.catSel{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}.cat{border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:12px;text-align:center;cursor:pointer;background:rgba(255,255,255,.05)}.cat.active{box-shadow:0 0 0 3px rgba(110,231,243,.35) inset}</style>
+<script type="module">
+import { listQuestions, getSelectedCategories, setSelectedCategories, getTeamNames, setTeamNames } from "/assets/app.js";
+let selectedCats=[]; let boardQuestions={};
+function allCategories(){ return Array.from(new Set(listQuestions().map(q=>q.category).filter(Boolean))); }
+function renderSetup(){ const all=allCategories(); const wrap=document.getElementById('cats'); wrap.innerHTML=''; const saved=getSelectedCategories().filter(c=>all.includes(c)); selectedCats=saved.length?saved.slice(0,6):all.slice(0,6); all.forEach(c=>{ const el=document.createElement('div'); el.className='cat'+(selectedCats.includes(c)?' active':''); el.textContent=c; el.onclick=()=>{ if(selectedCats.includes(c)) selectedCats=selectedCats.filter(x=>x!==c); else if(selectedCats.length<6) selectedCats.push(c); setSelectedCategories(selectedCats); renderSetup(); }; wrap.appendChild(el); }); document.getElementById('selCount').textContent=(selectedCats?.length||0)+'/6'; document.getElementById('startBtn').disabled=(selectedCats.length!==6); document.getElementById('noData').style.display=all.length?'none':'block'; }
+function pickRandom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function buildBoard(){ const qs=listQuestions(); boardQuestions={}; selectedCats.forEach(cat=> boardQuestions[cat]={100:null,200:null,300:null,400:null,500:null}); [100,200,300,400,500].forEach(level=>{ selectedCats.forEach(cat=>{ const bucket=qs.filter(q=>q.category===cat && Number(q.level)===level); if(bucket.length) boardQuestions[cat][level]=pickRandom(bucket); }); }); }
+function renderBoard(){ const board=document.getElementById('board'); board.innerHTML=''; const head=document.createElement('div'); head.style.display='grid'; head.style.gridTemplateColumns='repeat(6,1fr)'; head.style.gap='12px'; selectedCats.forEach(cat=>{ const h=document.createElement('div'); h.className='tile'; h.style.minHeight='60px'; h.textContent=cat; head.appendChild(h); }); board.appendChild(head); [100,200,300,400,500].forEach(level=>{ const row=document.createElement('div'); row.className='board'; selectedCats.forEach(cat=>{ const q=boardQuestions[cat]?.[level]||null; const t=document.createElement('div'); t.className='tile'; t.textContent=level; if(!q) t.classList.add('disabled'); else t.onclick=()=> openModal(q,cat,level,t); row.appendChild(t); }); board.appendChild(row); }); }
+let timer=null, timeLeft=60; function updT(){ document.getElementById('timer').textContent=String(Math.floor(timeLeft/60)).padStart(2,'0')+':'+String(timeLeft%60).padStart(2,'0'); } function startT(){ stopT(); timer=setInterval(()=>{ if(timeLeft<=0){stopT();} else{ timeLeft--; updT(); } },1000); } function stopT(){ if(timer){ clearInterval(timer); timer=null; } } function openModal(q,cat,level,tile){ const m=document.getElementById('modal'); m.style.display='grid'; document.getElementById('mTitle').textContent=cat+' • '+level; document.getElementById('mQ').textContent=q.q; document.getElementById('mA').textContent=q.a; document.getElementById('mA').style.display='none'; const img=document.getElementById('mImg'); if(q.img){ img.src=q.img; img.style.display='block'; } else img.style.display='none'; timeLeft=60; updT(); document.getElementById('showA').onclick=()=>{ const el=document.getElementById('mA'); el.style.display=(el.style.display==='none'?'block':'none'); }; document.getElementById('startTimer').onclick=startT; document.getElementById('pauseTimer').onclick=stopT; document.getElementById('resetTimer').onclick=()=>{ stopT(); timeLeft=60; updT(); }; document.getElementById('closeM').onclick=()=>{ stopT(); m.style.display='none'; }; tile.classList.add('disabled'); tile.onclick=null; }
+window.addEventListener('DOMContentLoaded',()=>{ renderSetup(); const t=getTeamNames(); document.getElementById('teamA').value=t.teamA; document.getElementById('teamB').value=t.teamB; document.getElementById('saveTeams').onclick=()=>{ setTeamNames({teamA:document.getElementById('teamA').value||'الفريق 1', teamB:document.getElementById('teamB').value||'الفريق 2'}); alert('تم الحفظ'); }; document.getElementById('startBtn').onclick=()=>{ buildBoard(); renderBoard(); document.getElementById('setup').style.display='none'; document.getElementById('play').style.display='block'; }; });
+</script></head>
 <body>
-
   <header class="nav">
     <div class="container nav-inner">
-      <nav class="tabs"><a class="tab" href="index.html">الرئيسية</a><a class="tab" href="packs.html">الحِزم</a><a class="tab" href="questions.html">الأسئلة</a><a class="tab active" href="game.html">البدء</a><a class="tab" href="settings.html">الإعدادات</a></nav>
+      <nav class="tabs"><a class="tab" href="/">الرئيسية</a><a class="tab" href="/packs">الحِزم</a><a class="tab" href="/questions">الأسئلة</a><a class="tab active" href="/game">البدء</a><a class="tab" href="/settings">الإعدادات</a></nav>
       <div class="spacer"></div>
       <div class="brand">🎮 سين جيم</div>
     </div>
   </header>
-<main class="container"><div class="card"><h2>ابدأ بعد استيراد حزمة وتحديدها نشطة</h2><p class="hint">من صفحة الحِزم.</p></div></main>
-<footer><span>سين جيم • البدء</span></footer>
-</body></html>
+<main class="container">
+  <div id="setup" class="grid cols-2">
+    <div id="noData" class="card" style="display:none"><h2>لا توجد أسئلة بعد</h2><p class="hint">استورد JSON من صفحة <b>الحِزم</b> ثم عد إلى هنا.</p></div>
+    <div class="card"><h2>اختر 6 فئات</h2><p class="hint">مجمّعة من كل الحِزم المستوردة.</p><div class="catSel" id="cats"></div>
+      <div class="row" style="justify-content:space-between;margin-top:10px"><span class="tag" id="selCount">0/6</span><button class="btn primary" id="startBtn" disabled>بدء اللعبة</button></div></div>
+    <div class="card"><h3>أسماء الفرق</h3><div class="grid"><label>الفريق 1 <input id="teamA" class="input" placeholder="الفريق 1"></label><label>الفريق 2 <input id="teamB" class="input" placeholder="الفريق 2"></label></div><div class="row" style="margin-top:10px"><button class="btn" id="saveTeams">حفظ</button></div></div>
+  </div>
+  <div id="play" style="display:none"><div class="card"><h2>لوحة الأسئلة</h2><div id="board"></div></div></div>
+</main>
+<div class="backdrop" id="modal"><div class="modal"><div class="row" style="justify-content:space-between"><h3 id="mTitle" style="margin:0">—</h3><button class="btn" id="closeM">إغلاق ✕</button></div>
+<div class="row" style="justify-content:center;margin:6px 0"><span class="tag" id="timer">00:60</span><button class="btn" id="startTimer">بدء</button><button class="btn" id="pauseTimer">إيقاف</button><button class="btn" id="resetTimer">إعادة</button></div>
+<div style="margin-top:6px;font-weight:600" id="mQ">—</div><img id="mImg" class="img" style="display:none;margin-top:8px" /><div class="hint" style="margin-top:8px"><b>الإجابة:</b> <span id="mA" style="display:none"></span></div>
+<div class="row" style="justify-content:center;margin-top:8px"><button class="btn" id="showA">إظهار/إخفاء الإجابة</button></div></div></div>
+<footer><span>سين جيم • البدء</span></footer></body></html>

@@ -11,7 +11,6 @@ export const store = {
   replaceAll(payload){ Object.entries(payload||{}).forEach(([k,v])=> this.set(k, v)); }
 };
 
-// defaults
 (function initDefaults(){
   if(!store.get(SETTINGS_KEY,null)) store.set(SETTINGS_KEY, { players:2, roundTime:60, difficulty:'normal' });
   if(!store.get(PACKS_KEY,null))    store.set(PACKS_KEY, []);
@@ -20,7 +19,6 @@ export const store = {
   if(!store.get(TEAM_NAMES_KEY,null)) store.set(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' });
 })();
 
-// packs/questions
 export function listPacks(){ return store.get(PACKS_KEY,[]); }
 export function listQuestions(){ return store.get(QUESTIONS_KEY,[]); }
 export function addPack(name){
@@ -38,13 +36,11 @@ export function addQuestion(q){
   const arr = listQuestions(); arr.push(item); store.set(QUESTIONS_KEY, arr); return item;
 }
 
-// helpers
 export function setSelectedCategories(cats){ store.set(SELECTED_CATS_KEY, cats||[]); }
 export function getSelectedCategories(){ return store.get(SELECTED_CATS_KEY, []); }
 export function setTeamNames(names){ store.set(TEAM_NAMES_KEY, { teamA: names.teamA||'الفريق 1', teamB: names.teamB||'الفريق 2' }); }
 export function getTeamNames(){ return store.get(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' }); }
 
-// import/export
 export function exportAll(){
   const payload = { settings: store.get(SETTINGS_KEY,{}), packs: listPacks(), questions: listQuestions() };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
@@ -65,13 +61,11 @@ export function importAllFromText(text, mode='merge'){
     const packs = listPacks(); conv.packs.forEach(p=>{ if(!packs.some(x=>x.id===p.id)) packs.push(p); }); store.set(PACKS_KEY,packs);
     const qs = listQuestions(); conv.questions.forEach(q=>{ if(!qs.some(x=>x.id===q.id)) qs.push(q); }); store.set(QUESTIONS_KEY, qs);
   }
-  // auto-pick first 6 categories for quick start
   const cats = Array.from(new Set(conv.questions.map(q=>q.category))).slice(0,6);
   if (cats.length) setSelectedCategories(cats);
   return true;
 }
 
-// normalizer (flat or v6.5)
 function normalize(d){
   if (Array.isArray(d?.questions) && Array.isArray(d?.packs)) {
     return { packs:d.packs, questions:d.questions.map(forceQ) };
@@ -79,7 +73,6 @@ function normalize(d){
   if (d && d.packs && typeof d.packs==='object' && !Array.isArray(d.packs)){
     return convertV65(d);
   }
-  // simple fallback: maybe already just questions[]
   if (Array.isArray(d)) {
     return { packs:[], questions:d.map(forceQ) };
   }
