@@ -1,155 +1,16 @@
 
 <!doctype html><html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>سين جيم • الأسئلة</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <script type="module">
-    import { activePack, listQuestionsByPack, addQuestion, updateQuestion, deleteQuestion, distinctCategories, fileToDataURL } from "./assets/app.js";
-
-    let currentPack = '';
-    let filter = { category: 'الكل', level: 'الكل' };
-
-    function renderFilters(){
-      const cats = ['الكل', ...distinctCategories(currentPack)];
-      const sel = document.getElementById('filterCategory');
-      sel.innerHTML = cats.map(c=>`<option>${c}</option>`).join('');
-    }
-
-    function renderList(){
-      const list = document.getElementById('qList'); list.innerHTML='';
-      let items = listQuestionsByPack(currentPack);
-      if (filter.category !== 'الكل') items = items.filter(x=>x.category===filter.category);
-      if (filter.level !== 'الكل') items = items.filter(x=>String(x.level)===String(filter.level));
-      if (!items.length){ list.innerHTML='<div class="hint">لا توجد أسئلة.</div>'; return; }
-      items.forEach(q=>{
-        const row = document.createElement('div'); row.className='list-item'; row.style.alignItems='flex-start';
-        row.innerHTML = `
-          <div style="max-width:70%">
-            <div style="font-weight:800">${q.category} • ${q.level}</div>
-            <div style="margin-top:6px">${q.q}</div>
-            ${q.img?'<div style="margin-top:6px"><img class="img" src="'+q.img+'" style="max-width:220px;border-radius:8px;border:1px solid #ddd"></div>':''}
-            <div class="hint" style="margin-top:6px"><b>الإجابة:</b> ${q.a}</div>
-          </div>
-          <div class="row">
-            <button class="btn" data-edit="${q.id}">تعديل</button>
-            <button class="btn danger" data-del="${q.id}">حذف</button>
-          </div>
-        `;
-        list.appendChild(row);
-      });
-      list.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{ if(confirm('حذف السؤال؟')){ deleteQuestion(b.dataset.del); renderList(); renderFilters(); } });
-      list.querySelectorAll('[data-edit]').forEach(b=> b.onclick = ()=> openEditor(b.dataset.edit));
-    }
-
-    function openEditor(id){
-      const panel = document.getElementById('editor'); panel.style.display='block';
-      const form = panel.querySelector('form');
-      const imgPrev = document.getElementById('imgPreview');
-      const fileInput = document.getElementById('imgFile');
-      form.reset(); imgPrev.src=''; imgPrev.style.display='none';
-      form.dataset.id = id || '';
-      if (id){
-        const q = listQuestionsByPack(currentPack).find(x=>x.id===id);
-        form.category.value = q.category; form.level.value = q.level; form.q.value = q.q; form.a.value = q.a;
-        if (q.img){ imgPrev.src=q.img; imgPrev.style.display='block'; }
-      } else {
-        form.category.value = ''; form.level.value = 100;
-      }
-      fileInput.onchange = async ()=>{
-        if(!fileInput.files.length) return;
-        const url = await fileToDataURL(fileInput.files[0]);
-        imgPrev.src = url; imgPrev.style.display='block';
-        form.dataset.img = url;
-      };
-    }
-
-    function closeEditor(){
-      document.getElementById('editor').style.display='none';
-      document.getElementById('imgPreview').src=''; document.getElementById('imgPreview').style.display='none';
-      const form = document.querySelector('#editor form'); form.reset(); form.dataset.id=''; form.dataset.img='';
-    }
-
-    window.addEventListener('DOMContentLoaded', ()=>{
-      currentPack = activePack();
-      document.getElementById('activePackName').textContent = currentPack;
-      renderFilters(); renderList();
-
-      document.getElementById('filterCategory').onchange = (e)=>{ filter.category = e.target.value; renderList(); };
-      document.getElementById('filterLevel').onchange = (e)=>{ filter.level = e.target.value; renderList(); };
-
-      document.getElementById('addBtn').onclick = ()=> openEditor(null);
-      document.getElementById('cancelBtn').onclick = closeEditor;
-      document.getElementById('saveBtn').onclick = (e)=>{
-        e.preventDefault();
-        const f = document.querySelector('#editor form');
-        const payload = { category:f.category.value||'غير مصنفة', level:Number(f.level.value||100), q:f.q.value||'', a:f.a.value||'', img: f.dataset.img || '' , pack: currentPack };
-        if (f.dataset.id){ updateQuestion(f.dataset.id, payload); } else { addQuestion(payload); }
-        closeEditor(); renderFilters(); renderList();
-      };
-    });
-  </script>
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سين جيم • الأسئلة</title><link rel="stylesheet" href="assets/style.css"></head>
 <body>
+
   <header class="nav">
     <div class="container nav-inner">
-      <nav class="tabs">
-        <a class="tab" href="index.html">الرئيسية</a>
-        <a class="tab" href="packs.html">الحِزم</a>
-        <a class="tab active" href="questions.html">الأسئلة</a>
-        <a class="tab" href="game.html">البدء</a>
-        <a class="tab" href="settings.html">الإعدادات</a>
-      </nav>
+      <nav class="tabs"><a class="tab" href="index.html">الرئيسية</a><a class="tab" href="packs.html">الحِزم</a><a class="tab active" href="questions.html">الأسئلة</a><a class="tab" href="game.html">البدء</a><a class="tab" href="settings.html">الإعدادات</a></nav>
       <div class="spacer"></div>
       <div class="brand">🎮 سين جيم</div>
     </div>
   </header>
-
-  <main class="container">
-    <div class="grid cols-3">
-      <div class="card">
-        <h2>أسئلة الحزمة: <span class="tag" id="activePackName">—</span></h2>
-        <div class="row" style="margin:8px 0">
-          <label>الفئة
-            <select id="filterCategory" class="input"></select>
-          </label>
-          <label>المستوى
-            <select id="filterLevel" class="input">
-              <option>الكل</option>
-              <option>100</option><option>200</option><option>300</option><option>400</option><option>500</option>
-            </select>
-          </label>
-          <button class="btn primary" id="addBtn">إضافة سؤال</button>
-        </div>
-        <div id="qList" class="list"></div>
-      </div>
-
-      <div id="editor" class="card" style="display:none">
-        <h3>المحرر</h3>
-        <form class="grid">
-          <label>الفئة <input name="category" class="input" placeholder="مثال: جغرافيا"></label>
-          <label>المستوى
-            <select name="level" class="input">
-              <option>100</option><option>200</option><option>300</option><option>400</option><option>500</option>
-            </select>
-          </label>
-          <label>نص السؤال <textarea name="q" class="input" rows="3"></textarea></label>
-          <label>الإجابة <textarea name="a" class="input" rows="2"></textarea></label>
-          <label>صورة (اختياري) <input type="file" id="imgFile" accept="image/*" class="input"></label>
-          <img id="imgPreview" class="img" style="display:none;margin-top:6px" />
-          <div class="row" style="margin-top:8px">
-            <button class="btn primary" id="saveBtn">حفظ</button>
-            <button class="btn" id="cancelBtn">إلغاء</button>
-          </div>
-        </form>
-      </div>
-
-      <div class="card">
-        <h3>نصائح</h3>
-        <p class="hint">استخدم مستويات 100–500 كما في لوحة v6.5. يمكنك إضافة صورة مرفقة بالسؤال.</p>
-      </div>
-    </div>
-  </main>
-
-  <footer><span>سين جيم • الأسئلة</span></footer>
+<main class="container"><div class="card"><h2>اذهب إلى الحِزم لاستيراد الأسئلة أولًا</h2><p class="hint">ثم عد هنا لتحريرها إن لزم.</p></div></main>
+<footer><span>سين جيم • الأسئلة</span></footer>
 </body></html>

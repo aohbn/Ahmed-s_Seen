@@ -1,13 +1,11 @@
 
-// === Keys ===
 export const SETTINGS_KEY = "sj:settings";
-export const QUESTIONS_KEY = "sj:questions"; // [{id,pack,category,level,q,a,img?}]
-export const PACKS_KEY = "sj:packs";         // [{id,name}]
+export const QUESTIONS_KEY = "sj:questions";
+export const PACKS_KEY = "sj:packs";
 export const ACTIVE_PACK_KEY = "sj:activePack";
 export const SELECTED_CATS_KEY = "sj:selectedCats";
 export const TEAM_NAMES_KEY = "sj:teamNames";
 
-// === Storage helpers ===
 export const store = {
   get(key, fallback){ try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
   set(key, val){ localStorage.setItem(key, JSON.stringify(val)); },
@@ -20,7 +18,6 @@ export const store = {
   }
 };
 
-// === Defaults ===
 (function initDefaults(){
   if(!store.get(SETTINGS_KEY,null)) store.set(SETTINGS_KEY, { players:2, roundTime:60, difficulty:'normal' });
   if(!store.get(PACKS_KEY,null))    store.set(PACKS_KEY, [{ id:'default', name:'الافتراضية'}]);
@@ -30,22 +27,13 @@ export const store = {
   if(!store.get(TEAM_NAMES_KEY,null)) store.set(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' });
 })();
 
-// === Nav highlight ===
-export function activateTab(href){
-  document.querySelectorAll('.tab').forEach(t=>{
-    const isActive = t.getAttribute('href') === href;
-    t.classList.toggle('active', isActive);
-  });
-}
-
-// === Packs API ===
 export function listPacks(){ return store.get(PACKS_KEY,[]); }
 export function activePack(){ return store.get(ACTIVE_PACK_KEY,'default'); }
 export function setActivePack(id){ store.set(ACTIVE_PACK_KEY, id); }
 export function addPack(name){
   const id = slugify(name)+ '-' + Math.random().toString(36).slice(2,6);
   const packs = listPacks();
-  if (packs.some(p=>p.id===id || p.name===name)) throw new Error('الاسم موجود مسبقًا');
+  if (packs.some(p=>p.name===name)) throw new Error('الاسم موجود مسبقًا');
   packs.push({id,name}); store.set(PACKS_KEY,packs);
   return id;
 }
@@ -58,7 +46,6 @@ export function deletePack(id){
   if (activePack()===id) setActivePack('default');
 }
 
-// === Questions API ===
 export function listQuestions(){ return store.get(QUESTIONS_KEY,[]); }
 export function listQuestionsByPack(pid){ return listQuestions().filter(q=>q.pack===pid); }
 export function addQuestion(q){
@@ -77,13 +64,11 @@ export function distinctCategories(pid){
   return [...set];
 }
 
-// === Teams & selected categories ===
 export function setSelectedCategories(cats){ store.set(SELECTED_CATS_KEY, cats||[]); }
 export function getSelectedCategories(){ return store.get(SELECTED_CATS_KEY, []); }
 export function setTeamNames(names){ store.set(TEAM_NAMES_KEY, { teamA: names.teamA||'الفريق 1', teamB: names.teamB||'الفريق 2' }); }
 export function getTeamNames(){ return store.get(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' }); }
 
-// === Import/Export ===
 export function exportAll(){
   const payload = {
     settings: store.get(SETTINGS_KEY,{}),
@@ -98,8 +83,12 @@ export function exportAll(){
 
 export async function importAllFromFile(file, mode='merge'){
   const text = await file.text();
+  return importAllFromText(text, mode);
+}
+export function importAllFromText(text, mode='merge'){
+  const beforePacks = listPacks();
   const data = JSON.parse(text);
-  const converted = normalizeImport(data); // auto-detect v6.5 or flat
+  const converted = normalizeImport(data);
   if (mode==='replace'){
     store.replaceAll({
       settings: converted.settings || store.get(SETTINGS_KEY,{}),
@@ -108,21 +97,21 @@ export async function importAllFromFile(file, mode='merge'){
       questions: converted.questions || []
     });
   } else {
-    // merge
     const packs = listPacks();
     (converted.packs||[]).forEach(p=>{ if(!packs.some(x=>x.id===p.id)) packs.push(p); });
     store.set(PACKS_KEY, packs);
     const qs = listQuestions();
     (converted.questions||[]).forEach(q=>{ if(!qs.some(x=>x.id===q.id)) qs.push(q); });
     store.set(QUESTIONS_KEY, qs);
+    if (beforePacks.length<=1 && converted.packs?.length){ setActivePack(converted.packs[0].id); }
     if (converted.activePack) setActivePack(converted.activePack);
     if (converted.settings) store.set(SETTINGS_KEY, {...store.get(SETTINGS_KEY,{}), ...converted.settings});
   }
+  return true;
 }
 
-// ---- Import normalizer ----
+// ---- Normalizer (flat or v6.5) ----
 function normalizeImport(data){
-  // Flat schema detection
   if (Array.isArray(data?.packs) || Array.isArray(data?.questions)){
     return {
       settings: data.settings ?? null,
@@ -131,11 +120,9 @@ function normalizeImport(data){
       questions: (data.questions ?? []).map(forceQuestionShape)
     };
   }
-  // v6.5 detection: packs is an object(categories -> array of pack-objects)
   if (data && data.packs && !Array.isArray(data.packs) && typeof data.packs === 'object'){
     return convertV65(data);
   }
-  // unknown -> try to coerce
   return { settings:null, packs:[], activePack:null, questions:[] };
 }
 
@@ -148,20 +135,16 @@ function convertV65(data){
   categories.forEach(cat=>{
     const arr = Array.isArray(data.packs[cat]) ? data.packs[cat] : [];
     arr.forEach((packObj, idx)=>{
-      // create pack id/name
       const pid = slugify(cat) + '-' + String(idx+1).padStart(2,'0');
       const pname = `${cat} – ${idx+1}`;
       if (!packsOut.some(p=>p.id===pid)) packsOut.push({id:pid, name:pname});
       if (!firstPackId) firstPackId = pid;
-      // iterate levels (numeric keys)
       Object.keys(packObj||{}).forEach(k=>{
-        const lvl = parseInt(k, 10);
-        if (isNaN(lvl)) return;
+        const lvl = parseInt(k, 10); if (isNaN(lvl)) return;
         const bucket = packObj[k];
         const entries = Array.isArray(bucket) ? bucket : [bucket];
         entries.forEach((entry)=>{
-          const qn = normalizeV65Entry(entry);
-          if (!qn) return;
+          const qn = normalizeV65Entry(entry); if (!qn) return;
           qsOut.push({
             id: 'q_'+Math.random().toString(36).slice(2),
             pack: pid,
@@ -187,23 +170,18 @@ function convertV65(data){
 function normalizeV65Entry(entry){
   if (entry == null) return null;
   if (typeof entry === 'string'){
-    // Try split "Q | A"
     const parts = entry.split('|');
-    if (parts.length >= 2){
-      return { q: parts[0].trim(), a: parts.slice(1).join('|').trim(), img: null };
-    }
+    if (parts.length >= 2) return { q: parts[0].trim(), a: parts.slice(1).join('|').trim(), img: null };
     return { q: entry.trim(), a: '', img: null };
   }
   if (Array.isArray(entry)){
-    const q = entry[0] ?? '';
-    const a = entry[1] ?? '';
-    const img = entry[2] ?? null;
+    const q = entry[0] ?? ''; const a = entry[1] ?? ''; const img = entry[2] ?? null;
     return { q, a, img };
   }
   if (typeof entry === 'object'){
     const q = entry.q ?? entry.question ?? entry.text ?? '';
     const a = entry.a ?? entry.answer ?? '';
-    const img = entry.img ?? entry.image ?? entry.photo ?? null;
+    const img = entry.img ?? entry.image ?? null;
     return { q, a, img };
   }
   return null;
