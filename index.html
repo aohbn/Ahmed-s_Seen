@@ -1,22 +1,8 @@
-
 <!doctype html><html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>سين جيم • الرئيسية</title>
   <link rel="stylesheet" href="assets/style.css">
-  <script type="module">
-    import { activateTab, store, SETTINGS_KEY, QUESTIONS_KEY, ACTIVE_PACK_KEY, PACKS_KEY } from "assets/app.js";
-    window.addEventListener('DOMContentLoaded', ()=>{
-      activateTab('/index.html');
-      const settings = store.get(SETTINGS_KEY, {});
-      const qs = store.get(QUESTIONS_KEY, []);
-      const active = store.get(ACTIVE_PACK_KEY, 'default');
-      const packs = store.get(PACKS_KEY, []);
-      document.getElementById('playersCount').textContent = settings.players ?? 0;
-      document.getElementById('totalQuestionsTag').textContent = qs.filter(q=>q.pack===active).length;
-      document.getElementById('selectedPackTag').textContent = (packs.find(p=>p.id===active)?.name) || 'الافتراضية';
-    });
-  </script>
 </head>
 <body>
   <header class="nav">
@@ -25,36 +11,36 @@
         <a class="tab active" href="index.html">الرئيسية</a>
         <a class="tab" href="game.html">اللعبة</a>
         <a class="tab" href="settings.html">الإعدادات</a>
-        <a class="tab" href="questions.html">الأسئلة</a>
         <a class="tab" href="packs.html">الحِزم</a>
+        <a class="tab" href="board.html">لوحة v6.5</a>
       </nav>
       <div class="spacer"></div>
       <div class="brand">🎮 سين جيم</div>
     </div>
   </header>
-
   <main class="container">
-    <div class="grid cols-2">
-      <div class="card">
-        <h2>مرحبًا</h2>
-        <p class="hint">اختر صفحة لضبط الإعدادات أو ابدأ اللعب.</p>
-        <div class="row" style="margin-top:12px">
-          <a class="btn primary" href="game.html">ابدأ اللعبة</a>
-          <a class="btn" href="settings.html">الإعدادات</a>
-          <a class="btn" href="questions.html">تحرير الأسئلة</a>
-        </div>
-      </div>
-      <div class="card">
-        <h3>الحالة</h3>
-        <div class="list">
-          <div class="list-item"><span>اللاعبون</span><span class="tag"><span id="playersCount">0</span></span></div>
-          <div class="list-item"><span>الحزمة المختارة</span><span class="tag" id="selectedPackTag">الافتراضية</span></div>
-          <div class="list-item"><span>عدد الأسئلة</span><span class="tag" id="totalQuestionsTag">0</span></div>
-        </div>
-      </div>
+    
+<div class="grid cols-2">
+  <div class="card">
+    <h2>مرحبًا</h2>
+    <p class="hint">ابدأ اللعبة الخفيفة أو افتح لوحة v6.5 للإدارة الكاملة (استيراد/تصدير JSON، صور الأسئلة...).</p>
+    <div class="row" style="margin-top:12px">
+      <a class="btn primary" href="board.html">لوحة v6.5 (كاملة)</a>
+      <a class="btn" href="game.html">نسخة خفيفة للعرض</a>
+      <a class="btn" href="settings.html">الإعدادات</a>
     </div>
-  </main>
+  </div>
+  <div class="card">
+    <h3>ملاحظات</h3>
+    <div class="list">
+      <div class="list-item"><span>الاستيراد</span><span class="tag">ملف JSON</span></div>
+      <div class="list-item"><span>الاستبدال</span><span class="tag">اضغط Alt أثناء الاستيراد</span></div>
+      <div class="list-item"><span>الصور</span><span class="tag">رفع أو رابط مباشر</span></div>
+    </div>
+  </div>
+</div>
 
+  </main>
   <footer><span>سين جيم • متعدد الصفحات</span></footer>
   <script type="module">import "assets/app.js";</script>
 </body></html>
