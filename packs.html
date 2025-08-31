@@ -2,9 +2,47 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>سين جيم • الحِزم</title><link rel="stylesheet" href="/assets/style.css">
 <script type="module">
-import { listPacks, addPack, deletePack, exportAll, importAllFromFile, importAllFromText } from "/assets/app.js";
-function render(){ const cont=document.getElementById('packsList'); cont.innerHTML=''; listPacks().forEach(p=>{ const row=document.createElement('div'); row.className='list-item'; row.innerHTML=`<span>\${p.name}</span><button class="btn danger" data-del="\${p.id}">حذف</button>`; cont.appendChild(row); }); cont.querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ if(confirm('حذف؟')){ deletePack(b.dataset.del); render(); } }); }
-window.addEventListener('DOMContentLoaded',()=>{ render(); document.getElementById('createBtn').onclick=()=>{ const n=(document.getElementById('packName').value||'').trim(); if(!n) return; addPack(n); document.getElementById('packName').value=''; render(); }; document.getElementById('exportBtn').onclick=exportAll; const fileInput=document.getElementById('importFile'); document.getElementById('importMerge').onclick=()=>{ fileInput.dataset.mode='merge'; fileInput.value=''; fileInput.click(); }; document.getElementById('importReplace').onclick=()=>{ fileInput.dataset.mode='replace'; fileInput.value=''; fileInput.click(); }; fileInput.onchange=async()=>{ if(!fileInput.files.length) return; const mode=fileInput.dataset.mode||'merge'; try{ await importAllFromFile(fileInput.files[0], mode); document.getElementById('status').textContent='✓ تم الاستيراد'; location.href='/game'; }catch(e){ document.getElementById('status').textContent='فشل: '+e.message; } }; });
+  import { listPacks, addPack, deletePack, exportAll, importAllFromFile } from "/assets/app.js";
+
+  function groupByCategory(packs){
+    const m = new Map();
+    packs.forEach(p=>{ const k=p.category||'غير مصنفة'; if(!m.has(k)) m.set(k, []); m.get(k).push(p); });
+    return m;
+  }
+
+  function render(){
+    const root = document.getElementById('packsGrouped'); root.innerHTML='';
+    const packs = listPacks();
+    const grouped = groupByCategory(packs);
+    if (!packs.length) { root.innerHTML = '<div class="hint">لا توجد حِزم بعد.</div>'; return; }
+    grouped.forEach((arr,cat)=>{
+      const card = document.createElement('div'); card.className='card';
+      card.innerHTML = `<h3>${cat}</h3><div class="list"></div>`;
+      const list = card.querySelector('.list');
+      arr.forEach(p=>{ const row=document.createElement('div'); row.className='list-item';
+        row.innerHTML = `<span>${p.name}</span><button class="btn danger" data-del="\${p.id}">حذف</button>`; list.appendChild(row); });
+      root.appendChild(card);
+    });
+    root.querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ if(confirm('حذف؟')){ deletePack(b.dataset.del); render(); } });
+  }
+
+  window.addEventListener('DOMContentLoaded',()=>{
+    render();
+    document.getElementById('createBtn').onclick = ()=>{
+      const n=(document.getElementById('packName').value||'').trim();
+      const c=(document.getElementById('packCat').value||'').trim()||'غير مصنفة';
+      if(!n) return; addPack(n,c); document.getElementById('packName').value=''; render();
+    };
+    document.getElementById('exportBtn').onclick = exportAll;
+
+    const fileInput=document.getElementById('importFile');
+    document.getElementById('importMerge').onclick=()=>{ fileInput.dataset.mode='merge'; fileInput.value=''; fileInput.click(); };
+    document.getElementById('importReplace').onclick=()=>{ fileInput.dataset.mode='replace'; fileInput.value=''; fileInput.click(); };
+    fileInput.onchange=async()=>{ if(!fileInput.files.length) return; const mode=fileInput.dataset.mode||'merge';
+      try{ await importAllFromFile(fileInput.files[0], mode); document.getElementById('status').textContent='✓ تم الاستيراد'; render(); }
+      catch(e){ document.getElementById('status').textContent='فشل: '+e.message; }
+    };
+  });
 </script></head>
 <body>
   <header class="nav">
@@ -14,10 +52,30 @@ window.addEventListener('DOMContentLoaded',()=>{ render(); document.getElementBy
       <div class="brand">🎮 سين جيم</div>
     </div>
   </header>
-<main class="container"><div class="grid cols-2">
-<div class="card"><h2>استيراد/تصدير</h2><p class="hint">يدعم JSON المسطح وشكل v6.5.</p>
-<div class="row"><input type="file" id="importFile" accept="application/json,.json" class="input" style="max-width:280px">
-<button class="btn" id="importMerge">استيراد (دمج)</button><button class="btn danger" id="importReplace">استيراد (استبدال)</button>
-<button class="btn" id="exportBtn">تصدير JSON</button><span class="hint" id="status"></span></div></div>
-<div class="card"><h2>إنشاء حزمة سريعة</h2><div class="grid cols-2"><label>اسم الحزمة <input id="packName" class="input" placeholder="مثال: ثقافة عامة"></label><div class="row" style="align-items:flex-end"><button class="btn primary" id="createBtn">إنشاء</button></div></div><h3 style="margin-top:14px">حِزمك</h3><div id="packsList" class="list"></div></div>
-</div></main><footer><span>سين جيم • الحِزم</span></footer></body></html>
+<main class="container">
+  <div class="grid cols-2">
+    <div class="card">
+      <h2>إنشاء حزمة</h2>
+      <div class="grid cols-2">
+        <label>اسم الحزمة <input id="packName" class="input" placeholder="مثال: عواصم"></label>
+        <label>الفئة <input id="packCat" class="input" placeholder="مثال: جغرافيا"></label>
+      </div>
+      <div class="row" style="margin-top:8px"><button class="btn primary" id="createBtn">إنشاء</button></div>
+      <h3 style="margin-top:14px">حِزمك حسب الفئة</h3>
+      <div id="packsGrouped"></div>
+    </div>
+    <div class="card">
+      <h2>استيراد/تصدير</h2>
+      <p class="hint">يدعم JSON المسطح وشكل v6.5. تُسند الفئة تلقائيًا عند غيابها.</p>
+      <div class="row">
+        <input type="file" id="importFile" accept="application/json,.json" class="input" style="max-width:280px">
+        <button class="btn" id="importMerge">استيراد (دمج)</button>
+        <button class="btn danger" id="importReplace">استيراد (استبدال)</button>
+        <button class="btn" id="exportBtn">تصدير JSON</button>
+        <span class="hint" id="status"></span>
+      </div>
+    </div>
+  </div>
+</main>
+<footer><span>سين جيم • الحِزم</span></footer>
+</body></html>

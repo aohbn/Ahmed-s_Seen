@@ -3,3 +3,4 @@
 /questions /questions.html 200
 /game /game.html 200
 /settings /settings.html 200
+/assets/* /assets/:splat 200

@@ -8,7 +8,6 @@ export const TEAM_NAMES_KEY = "sj:teamNames";
 export const store = {
   get(key, fallback){ try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
   set(key, val){ localStorage.setItem(key, JSON.stringify(val)); },
-  replaceAll(payload){ Object.entries(payload||{}).forEach(([k,v])=> this.set(k, v)); }
 };
 
 (function initDefaults(){
@@ -19,28 +18,33 @@ export const store = {
   if(!store.get(TEAM_NAMES_KEY,null)) store.set(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' });
 })();
 
+// ---------- Packs & Questions ----------
 export function listPacks(){ return store.get(PACKS_KEY,[]); }
 export function listQuestions(){ return store.get(QUESTIONS_KEY,[]); }
-export function addPack(name){
+
+export function addPack(name, category){
   const id = slugify(name)+ '-' + Math.random().toString(36).slice(2,6);
-  const packs = listPacks(); if (packs.some(p=>p.name===name)) throw new Error('الاسم موجود مسبقًا');
-  packs.push({id,name}); store.set(PACKS_KEY,packs); return id;
+  const packs = listPacks(); if (packs.some(p=>p.name===name && p.category===category)) throw new Error('الاسم موجود في هذه الفئة');
+  packs.push({id,name,category: category||'غير مصنفة'}); store.set(PACKS_KEY,packs); return id;
 }
 export function deletePack(id){
   const packs = listPacks().filter(p=>p.id!==id); store.set(PACKS_KEY, packs);
   const qs = listQuestions().filter(q=>q.pack!==id); store.set(QUESTIONS_KEY, qs);
 }
+
 export function addQuestion(q){
   const id = 'q_'+Date.now()+'_'+Math.floor(Math.random()*1e6);
   const item = { id, pack:q.pack||'default', category:q.category||'غير مصنفة', level:Number(q.level||100), q:String(q.q??'').trim(), a:String(q.a??'').trim(), img:q.img||null };
   const arr = listQuestions(); arr.push(item); store.set(QUESTIONS_KEY, arr); return item;
 }
 
+// ---------- Helpers ----------
 export function setSelectedCategories(cats){ store.set(SELECTED_CATS_KEY, cats||[]); }
 export function getSelectedCategories(){ return store.get(SELECTED_CATS_KEY, []); }
 export function setTeamNames(names){ store.set(TEAM_NAMES_KEY, { teamA: names.teamA||'الفريق 1', teamB: names.teamB||'الفريق 2' }); }
 export function getTeamNames(){ return store.get(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' }); }
 
+// ---------- Import/Export (flat + v6.5) ----------
 export function exportAll(){
   const payload = { settings: store.get(SETTINGS_KEY,{}), packs: listPacks(), questions: listQuestions() };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
@@ -53,7 +57,17 @@ export async function importAllFromFile(file, mode='merge'){
 }
 export function importAllFromText(text, mode='merge'){
   const data = JSON.parse(text);
-  const conv = normalize(data);
+  const conv = normalize(data); // {packs, questions}
+  // infer category for packs without category: majority category of their questions
+  const groupedByPack = conv.questions.reduce((m,q)=>{ (m[q.pack] ||= []).push(q); return m; }, {});
+  conv.packs.forEach(p=>{
+    if(!p.category){
+      const arr = groupedByPack[p.id] || [];
+      const counts = {}; arr.forEach(x=> counts[x.category] = (counts[x.category]||0)+1 );
+      p.category = Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0] || 'غير مصنفة';
+    }
+  });
+
   if(mode==='replace'){
     store.set(PACKS_KEY, conv.packs);
     store.set(QUESTIONS_KEY, conv.questions);
@@ -61,6 +75,8 @@ export function importAllFromText(text, mode='merge'){
     const packs = listPacks(); conv.packs.forEach(p=>{ if(!packs.some(x=>x.id===p.id)) packs.push(p); }); store.set(PACKS_KEY,packs);
     const qs = listQuestions(); conv.questions.forEach(q=>{ if(!qs.some(x=>x.id===q.id)) qs.push(q); }); store.set(QUESTIONS_KEY, qs);
   }
+
+  // auto-pick first 6 categories for quick start
   const cats = Array.from(new Set(conv.questions.map(q=>q.category))).slice(0,6);
   if (cats.length) setSelectedCategories(cats);
   return true;
@@ -68,14 +84,13 @@ export function importAllFromText(text, mode='merge'){
 
 function normalize(d){
   if (Array.isArray(d?.questions) && Array.isArray(d?.packs)) {
-    return { packs:d.packs, questions:d.questions.map(forceQ) };
+    // ensure packs have category if provided
+    return { packs:d.packs.map(p=>({id:p.id, name:p.name, category:p.category||p.cat||null})), questions:d.questions.map(forceQ) };
   }
   if (d && d.packs && typeof d.packs==='object' && !Array.isArray(d.packs)){
     return convertV65(d);
   }
-  if (Array.isArray(d)) {
-    return { packs:[], questions:d.map(forceQ) };
-  }
+  if (Array.isArray(d)) { return { packs:[], questions:d.map(forceQ) }; }
   return { packs:[], questions:[] };
 }
 function convertV65(data){
@@ -84,7 +99,7 @@ function convertV65(data){
     const list = Array.isArray(data.packs[cat]) ? data.packs[cat] : [];
     list.forEach((pack,i)=>{
       const pid = slugify(cat)+'-'+String(i+1).padStart(2,'0'); const pname = `${cat} – ${i+1}`;
-      if(!packsOut.some(p=>p.id===pid)) packsOut.push({id:pid,name:pname});
+      if(!packsOut.some(p=>p.id===pid)) packsOut.push({id:pid,name:pname,category:cat});
       Object.keys(pack||{}).forEach(k=>{
         const lvl = parseInt(k,10); if(isNaN(lvl)) return;
         const bucket = pack[k]; const arr = Array.isArray(bucket)?bucket:[bucket];
