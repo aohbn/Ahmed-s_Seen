@@ -12,8 +12,24 @@
     document.getElementById('nameA').textContent=names.teamA; document.getElementById('nameB').textContent=names.teamB;
     document.getElementById('scoreA').textContent=s.A; document.getElementById('scoreB').textContent=s.B;
     document.getElementById('turn').textContent=(s.turn==='A'?names.teamA:names.teamB);
+    try{ _bindScoreAdjust(); }catch(e){}
   }
   function addPoints(team, pts){ const s=getScores(); s[team]+=pts; setScores(s); renderScore(); }
+
+  function _bindScoreAdjust(){ 
+    const addA=document.getElementById('addA');
+    const subA=document.getElementById('subA');
+    const addB=document.getElementById('addB');
+    const subB=document.getElementById('subB');
+    if(!addA||!subA||!addB||!subB) return;
+    const adj=(team,delta)=>{ const s=getScores(); s[team]+=delta; if(s[team]<0) s[team]=0; setScores(s); renderScore(); };
+    addA.onclick=()=>adj('A',100);
+    subA.onclick=()=>adj('A',-100);
+    addB.onclick=()=>adj('B',100);
+    subB.onclick=()=>adj('B',-100);
+  }
+
+
   function switchTurn(){ const s=getScores(); s.turn=(s.turn==='A'?'B':'A'); setScores(s); renderScore(); }
 
   function allCategories(){ return Array.from(new Set(listQuestions().map(q=>q.category).filter(Boolean))); }
@@ -83,7 +99,7 @@
     startT();
   }
 
-  window.addEventListener('DOMContentLoaded',()=>{
+  window.addEventListener('DOMContentLoaded',()=>{ try{ _bindScoreAdjust(); }catch(e){};
     renderScore();
     renderSetup();
     const t=getTeamNames(); document.getElementById('teamA').value=t.teamA; document.getElementById('teamB').value=t.teamB;
