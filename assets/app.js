@@ -84,6 +84,74 @@ export function setTeamNames(names){ store.set(TEAM_NAMES_KEY, { teamA: names.te
 export function getTeamNames(){ return store.get(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' }); }
 
 // === Import/Export ===
+
+// --- v6.5 Import (packs/META) ---
+function slugify_ar(s){ return (s||'').toString().toLowerCase()
+  .replace(/[^a-z0-9\u0600-\u06FF]+/g,'-').replace(/(^-|-$)/g,''); }
+
+function importV65(raw, mode='merge'){
+  // v6.5 export looks like: { packs: { "<cat>": [ {100:[q,q],200:[q,q],300:[q,q],400:q}, ... ] }, meta: {...} }
+  const packsObj = raw && raw.packs;
+  if (!packsObj || typeof packsObj !== 'object') return false; // not v6.5
+  // Build packs list + flat questions
+  const packsList = listPacks();
+  const qsAll = listQuestions();
+  let firstPackId = null;
+
+  Object.keys(packsObj).forEach(cat=>{
+    const packArr = Array.isArray(packsObj[cat]) ? packsObj[cat] : [];
+    packArr.forEach((p, idx)=>{
+      const name = cat + " – " + String(idx+1);
+      const id = slugify_ar(cat) + "-" + String(idx+1).padStart(2,'0');
+      if (mode==='replace'){
+        // ensure pack exists in fresh list
+        if (!packsList.some(x=>x.id===id)) packsList.push({id,name});
+      } else {
+        // merge: add if not exists
+        if (!packsList.some(x=>x.id===id)) packsList.push({id,name});
+      }
+      if (!firstPackId) firstPackId = id;
+
+      const pushQ = (lvl, q) => {
+        if (!q) return;
+        const item = {
+          id: 'v65_' + id + '_' + lvl + '_' + Math.random().toString(36).slice(2,8),
+          pack: id,
+          category: cat,
+          level: Number(lvl),
+          q: (q.text||'').trim(),
+          a: (q.answer||'').trim(),
+          img: q.img || null
+        };
+        qsAll.push(item);
+      };
+
+      // v6.5 questions
+      [100,200,300].forEach(lvl=>{
+        const arr = p && p[lvl];
+        if (Array.isArray(arr)){
+          arr.forEach(el=> pushQ(lvl, el));
+        } else if (arr && typeof arr==='object'){
+          pushQ(lvl, arr);
+        }
+      });
+      const q400 = p && p[400];
+      if (Array.isArray(q400)) pushQ(400, q400[0]);
+      else if (q400 && typeof q400==='object') pushQ(400, q400);
+    });
+  });
+
+  if (mode==='replace'){
+    store.set(PACKS_KEY, packsList);
+    store.set(QUESTIONS_KEY, qsAll);
+    if (firstPackId) setActivePack(firstPackId);
+  } else {
+    store.set(PACKS_KEY, packsList);
+    store.set(QUESTIONS_KEY, qsAll);
+    if (firstPackId && !activePack()) setActivePack(firstPackId);
+  }
+  return true;
+}
 export function exportAll(){
   const payload = {
     settings: store.get(SETTINGS_KEY,{}),
@@ -102,6 +170,8 @@ export function importAllFromFile(file, mode='merge'){
     fr.onload = ()=>{
       try {
         const data = JSON.parse(fr.result);
+        // Try v6.5 schema
+        if (importV65(data, mode)) { resolve(true); return; }
         if (mode==='replace'){
           store.replaceAll({
             settings: data.settings || store.get(SETTINGS_KEY,{}),
