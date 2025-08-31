@@ -43,9 +43,9 @@ export function listPacks(){ return store.get(PACKS_KEY,[]); }
 export function activePack(){ return store.get(ACTIVE_PACK_KEY,'default'); }
 export function setActivePack(id){ store.set(ACTIVE_PACK_KEY, id); }
 export function addPack(name){
-  const id = name.toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g,'-').replace(/(^-|-$)/g,'') || ('pack-'+Date.now());
+  const id = slugify(name)+ '-' + Math.random().toString(36).slice(2,6);
   const packs = listPacks();
-  if (packs.some(p=>p.id===id)) throw new Error('الاسم موجود مسبقًا');
+  if (packs.some(p=>p.id===id || p.name===name)) throw new Error('الاسم موجود مسبقًا');
   packs.push({id,name}); store.set(PACKS_KEY,packs);
   return id;
 }
@@ -63,12 +63,12 @@ export function listQuestions(){ return store.get(QUESTIONS_KEY,[]); }
 export function listQuestionsByPack(pid){ return listQuestions().filter(q=>q.pack===pid); }
 export function addQuestion(q){
   const id = 'q_'+Date.now()+'_'+Math.floor(Math.random()*1e6);
-  const item = { id, pack: q.pack || activePack(), category:q.category||'غير مصنفة', level:q.level||100, q:q.q?.trim()||'', a:q.a?.trim()||'', img:q.img||null };
+  const item = { id, pack: q.pack || activePack(), category:q.category||'غير مصنفة', level:Number(q.level||100), q:String(q.q??'').trim(), a:String(q.a??'').trim(), img:q.img||null };
   const arr = listQuestions(); arr.push(item); store.set(QUESTIONS_KEY, arr); return item;
 }
 export function updateQuestion(id, partial){
   const arr = listQuestions(); const i = arr.findIndex(x=>x.id===id); if(i<0) return;
-  arr[i] = { ...arr[i], ...partial }; store.set(QUESTIONS_KEY, arr);
+  arr[i] = { ...arr[i], ...partial, level:Number(partial.level ?? arr[i].level) }; store.set(QUESTIONS_KEY, arr);
 }
 export function deleteQuestion(id){ store.set(QUESTIONS_KEY, listQuestions().filter(q=>q.id!==id)); }
 
@@ -84,74 +84,6 @@ export function setTeamNames(names){ store.set(TEAM_NAMES_KEY, { teamA: names.te
 export function getTeamNames(){ return store.get(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' }); }
 
 // === Import/Export ===
-
-// --- v6.5 Import (packs/META) ---
-function slugify_ar(s){ return (s||'').toString().toLowerCase()
-  .replace(/[^a-z0-9\u0600-\u06FF]+/g,'-').replace(/(^-|-$)/g,''); }
-
-function importV65(raw, mode='merge'){
-  // v6.5 export looks like: { packs: { "<cat>": [ {100:[q,q],200:[q,q],300:[q,q],400:q}, ... ] }, meta: {...} }
-  const packsObj = raw && raw.packs;
-  if (!packsObj || typeof packsObj !== 'object') return false; // not v6.5
-  // Build packs list + flat questions
-  const packsList = listPacks();
-  const qsAll = listQuestions();
-  let firstPackId = null;
-
-  Object.keys(packsObj).forEach(cat=>{
-    const packArr = Array.isArray(packsObj[cat]) ? packsObj[cat] : [];
-    packArr.forEach((p, idx)=>{
-      const name = cat + " – " + String(idx+1);
-      const id = slugify_ar(cat) + "-" + String(idx+1).padStart(2,'0');
-      if (mode==='replace'){
-        // ensure pack exists in fresh list
-        if (!packsList.some(x=>x.id===id)) packsList.push({id,name});
-      } else {
-        // merge: add if not exists
-        if (!packsList.some(x=>x.id===id)) packsList.push({id,name});
-      }
-      if (!firstPackId) firstPackId = id;
-
-      const pushQ = (lvl, q) => {
-        if (!q) return;
-        const item = {
-          id: 'v65_' + id + '_' + lvl + '_' + Math.random().toString(36).slice(2,8),
-          pack: id,
-          category: cat,
-          level: Number(lvl),
-          q: (q.text||'').trim(),
-          a: (q.answer||'').trim(),
-          img: q.img || null
-        };
-        qsAll.push(item);
-      };
-
-      // v6.5 questions
-      [100,200,300].forEach(lvl=>{
-        const arr = p && p[lvl];
-        if (Array.isArray(arr)){
-          arr.forEach(el=> pushQ(lvl, el));
-        } else if (arr && typeof arr==='object'){
-          pushQ(lvl, arr);
-        }
-      });
-      const q400 = p && p[400];
-      if (Array.isArray(q400)) pushQ(400, q400[0]);
-      else if (q400 && typeof q400==='object') pushQ(400, q400);
-    });
-  });
-
-  if (mode==='replace'){
-    store.set(PACKS_KEY, packsList);
-    store.set(QUESTIONS_KEY, qsAll);
-    if (firstPackId) setActivePack(firstPackId);
-  } else {
-    store.set(PACKS_KEY, packsList);
-    store.set(QUESTIONS_KEY, qsAll);
-    if (firstPackId && !activePack()) setActivePack(firstPackId);
-  }
-  return true;
-}
 export function exportAll(){
   const payload = {
     settings: store.get(SETTINGS_KEY,{}),
@@ -163,40 +95,134 @@ export function exportAll(){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'seen-jeem-export.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2500);
 }
-export function importAllFromFile(file, mode='merge'){
-  // mode: 'merge' | 'replace'
-  return new Promise((resolve,reject)=>{
-    const fr = new FileReader();
-    fr.onload = ()=>{
-      try {
-        const data = JSON.parse(fr.result);
-        // Try v6.5 schema
-        if (importV65(data, mode)) { resolve(true); return; }
-        if (mode==='replace'){
-          store.replaceAll({
-            settings: data.settings || store.get(SETTINGS_KEY,{}),
-            packs: data.packs || [{id:'default',name:'الافتراضية'}],
-            activePack: data.activePack || 'default',
-            questions: data.questions || []
-          });
-        } else {
-          // merge
-          const packs = listPacks();
-          (data.packs||[]).forEach(p=>{ if(!packs.some(x=>x.id===p.id)) packs.push(p); });
-          store.set(PACKS_KEY, packs);
-          const qs = listQuestions();
-          (data.questions||[]).forEach(q=>{ if(!qs.some(x=>x.id===q.id)) qs.push(q); });
-          store.set(QUESTIONS_KEY, qs);
-          if (data.activePack) setActivePack(data.activePack);
-          if (data.settings) store.set(SETTINGS_KEY, {...store.get(SETTINGS_KEY,{}), ...data.settings});
-        }
-        resolve(true);
-      } catch(e){ reject(e); }
-    };
-    fr.onerror = ()=>reject(fr.error);
-    fr.readAsText(file);
-  });
+
+export async function importAllFromFile(file, mode='merge'){
+  const text = await file.text();
+  const data = JSON.parse(text);
+  const converted = normalizeImport(data); // auto-detect v6.5 or flat
+  if (mode==='replace'){
+    store.replaceAll({
+      settings: converted.settings || store.get(SETTINGS_KEY,{}),
+      packs: converted.packs || [{id:'default',name:'الافتراضية'}],
+      activePack: converted.activePack || (converted.packs?.[0]?.id ?? 'default'),
+      questions: converted.questions || []
+    });
+  } else {
+    // merge
+    const packs = listPacks();
+    (converted.packs||[]).forEach(p=>{ if(!packs.some(x=>x.id===p.id)) packs.push(p); });
+    store.set(PACKS_KEY, packs);
+    const qs = listQuestions();
+    (converted.questions||[]).forEach(q=>{ if(!qs.some(x=>x.id===q.id)) qs.push(q); });
+    store.set(QUESTIONS_KEY, qs);
+    if (converted.activePack) setActivePack(converted.activePack);
+    if (converted.settings) store.set(SETTINGS_KEY, {...store.get(SETTINGS_KEY,{}), ...converted.settings});
+  }
 }
 
-// === Utils ===
-export function fileToDataURL(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error); fr.readAsDataURL(file); }); }
+// ---- Import normalizer ----
+function normalizeImport(data){
+  // Flat schema detection
+  if (Array.isArray(data?.packs) || Array.isArray(data?.questions)){
+    return {
+      settings: data.settings ?? null,
+      packs: data.packs ?? [],
+      activePack: data.activePack ?? null,
+      questions: (data.questions ?? []).map(forceQuestionShape)
+    };
+  }
+  // v6.5 detection: packs is an object(categories -> array of pack-objects)
+  if (data && data.packs && !Array.isArray(data.packs) && typeof data.packs === 'object'){
+    return convertV65(data);
+  }
+  // unknown -> try to coerce
+  return { settings:null, packs:[], activePack:null, questions:[] };
+}
+
+function convertV65(data){
+  const packsOut = [];
+  const qsOut = [];
+  let firstPackId = null;
+
+  const categories = Object.keys(data.packs||{});
+  categories.forEach(cat=>{
+    const arr = Array.isArray(data.packs[cat]) ? data.packs[cat] : [];
+    arr.forEach((packObj, idx)=>{
+      // create pack id/name
+      const pid = slugify(cat) + '-' + String(idx+1).padStart(2,'0');
+      const pname = `${cat} – ${idx+1}`;
+      if (!packsOut.some(p=>p.id===pid)) packsOut.push({id:pid, name:pname});
+      if (!firstPackId) firstPackId = pid;
+      // iterate levels (numeric keys)
+      Object.keys(packObj||{}).forEach(k=>{
+        const lvl = parseInt(k, 10);
+        if (isNaN(lvl)) return;
+        const bucket = packObj[k];
+        const entries = Array.isArray(bucket) ? bucket : [bucket];
+        entries.forEach((entry)=>{
+          const qn = normalizeV65Entry(entry);
+          if (!qn) return;
+          qsOut.push({
+            id: 'q_'+Math.random().toString(36).slice(2),
+            pack: pid,
+            category: cat,
+            level: lvl,
+            q: String(qn.q||'').trim(),
+            a: String(qn.a||'').trim(),
+            img: qn.img || null
+          });
+        });
+      });
+    });
+  });
+
+  return {
+    settings: data.settings ?? null,
+    packs: packsOut,
+    activePack: data.activePack ?? firstPackId ?? null,
+    questions: qsOut
+  };
+}
+
+function normalizeV65Entry(entry){
+  if (entry == null) return null;
+  if (typeof entry === 'string'){
+    // Try split "Q | A"
+    const parts = entry.split('|');
+    if (parts.length >= 2){
+      return { q: parts[0].trim(), a: parts.slice(1).join('|').trim(), img: null };
+    }
+    return { q: entry.trim(), a: '', img: null };
+  }
+  if (Array.isArray(entry)){
+    const q = entry[0] ?? '';
+    const a = entry[1] ?? '';
+    const img = entry[2] ?? null;
+    return { q, a, img };
+  }
+  if (typeof entry === 'object'){
+    const q = entry.q ?? entry.question ?? entry.text ?? '';
+    const a = entry.a ?? entry.answer ?? '';
+    const img = entry.img ?? entry.image ?? entry.photo ?? null;
+    return { q, a, img };
+  }
+  return null;
+}
+
+function forceQuestionShape(q){
+  return {
+    id: q.id ?? ('q_'+Math.random().toString(36).slice(2)),
+    pack: q.pack ?? 'default',
+    category: q.category ?? 'غير مصنفة',
+    level: Number(q.level ?? 100),
+    q: String(q.q ?? q.question ?? '').trim(),
+    a: String(q.a ?? q.answer ?? '').trim(),
+    img: q.img ?? q.image ?? null
+  };
+}
+
+function slugify(s){
+  return String(s).toLowerCase()
+    .replace(/[^a-z0-9\u0600-\u06FF]+/g, '-')
+    .replace(/(^-|-$)/g,'');
+}

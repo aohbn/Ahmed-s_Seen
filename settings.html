@@ -5,9 +5,8 @@
   <title>سين جيم • الإعدادات</title>
   <link rel="stylesheet" href="assets/style.css">
   <script type="module">
-    import { activateTab, store, SETTINGS_KEY } from "./assets/app.js";
+    import { store, SETTINGS_KEY } from "./assets/app.js";
     window.addEventListener('DOMContentLoaded', ()=>{
-      activateTab('settings.html');
       const settings = store.get(SETTINGS_KEY,{players:2,roundTime:60,difficulty:'normal'});
       const players = document.getElementById('players');
       const time = document.getElementById('time');

@@ -5,7 +5,7 @@
   <title>سين جيم • الأسئلة</title>
   <link rel="stylesheet" href="assets/style.css">
   <script type="module">
-    import { activateTab, activePack, listQuestionsByPack, addQuestion, updateQuestion, deleteQuestion, distinctCategories, fileToDataURL } from "./assets/app.js";
+    import { activePack, listQuestionsByPack, addQuestion, updateQuestion, deleteQuestion, distinctCategories, fileToDataURL } from "./assets/app.js";
 
     let currentPack = '';
     let filter = { category: 'الكل', level: 'الكل' };
@@ -13,7 +13,7 @@
     function renderFilters(){
       const cats = ['الكل', ...distinctCategories(currentPack)];
       const sel = document.getElementById('filterCategory');
-      sel.innerHTML = cats.map(c=>\`<option>\${c}</option>\`).join('');
+      sel.innerHTML = cats.map(c=>`<option>${c}</option>`).join('');
     }
 
     function renderList(){
@@ -24,18 +24,18 @@
       if (!items.length){ list.innerHTML='<div class="hint">لا توجد أسئلة.</div>'; return; }
       items.forEach(q=>{
         const row = document.createElement('div'); row.className='list-item'; row.style.alignItems='flex-start';
-        row.innerHTML = \`
+        row.innerHTML = `
           <div style="max-width:70%">
-            <div style="font-weight:800">\${q.category} • \${q.level}</div>
-            <div style="margin-top:6px">\${q.q}</div>
-            \${q.img?'<div style="margin-top:6px"><img class="img" src="'+q.img+'" style="max-width:220px;border-radius:8px;border:1px solid #ddd"></div>':''}
-            <div class="hint" style="margin-top:6px"><b>الإجابة:</b> \${q.a}</div>
+            <div style="font-weight:800">${q.category} • ${q.level}</div>
+            <div style="margin-top:6px">${q.q}</div>
+            ${q.img?'<div style="margin-top:6px"><img class="img" src="'+q.img+'" style="max-width:220px;border-radius:8px;border:1px solid #ddd"></div>':''}
+            <div class="hint" style="margin-top:6px"><b>الإجابة:</b> ${q.a}</div>
           </div>
           <div class="row">
-            <button class="btn" data-edit="\${q.id}">تعديل</button>
-            <button class="btn danger" data-del="\${q.id}">حذف</button>
+            <button class="btn" data-edit="${q.id}">تعديل</button>
+            <button class="btn danger" data-del="${q.id}">حذف</button>
           </div>
-        \`;
+        `;
         list.appendChild(row);
       });
       list.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{ if(confirm('حذف السؤال؟')){ deleteQuestion(b.dataset.del); renderList(); renderFilters(); } });
@@ -71,7 +71,6 @@
     }
 
     window.addEventListener('DOMContentLoaded', ()=>{
-      activateTab('questions.html');
       currentPack = activePack();
       document.getElementById('activePackName').textContent = currentPack;
       renderFilters(); renderList();
