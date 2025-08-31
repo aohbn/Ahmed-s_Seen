@@ -38,17 +38,28 @@
       document.getElementById('exportBtn').onclick = exportAll;
 
       const fileInput = document.getElementById('importFile');
-      document.getElementById('importMerge').onclick = ()=>{ fileInput.dataset.mode='merge'; fileInput.click(); };
-      document.getElementById('importReplace').onclick = ()=>{ fileInput.dataset.mode='replace'; fileInput.click(); };
+      const importRow = document.getElementById('importRow');
+      const importHint = document.getElementById('importHint');
+      ;['dragenter','dragover'].forEach(evt=>importRow.addEventListener(evt, e=>{e.preventDefault();importRow.style.boxShadow='0 0 0 3px rgba(110,231,243,.3) inset';}));
+      ;['dragleave','drop'].forEach(evt=>importRow.addEventListener(evt, e=>{e.preventDefault();importRow.style.boxShadow='none';}));
+      importRow.addEventListener('drop', async (e)=>{
+        const f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if(!f) return;
+        try { importHint.textContent='...جاري الاستيراد'; await importAllFromFile(f, 'merge'); importHint.textContent='✓ تم'; render(); }
+        catch(err){ importHint.textContent='فشل: '+err.message; }
+      });
+      document.getElementById('importMerge').onclick = ()=>{ fileInput.dataset.mode='merge'; try{ fileInput.value=''; if(fileInput.showPicker){ fileInput.showPicker(); } else { fileInput.click(); } }catch(e){ fileInput.click(); } };
+      document.getElementById('importReplace').onclick = ()=>{ fileInput.dataset.mode='replace'; try{ fileInput.value=''; if(fileInput.showPicker){ fileInput.showPicker(); } else { fileInput.click(); } }catch(e){ fileInput.click(); } };
       fileInput.onchange = async ()=>{
         if(!fileInput.files.length) return;
         const mode = fileInput.dataset.mode || 'merge';
         try {
+          importHint.textContent='...جاري الاستيراد';
           await importAllFromFile(fileInput.files[0], mode);
-          alert('تم الاستيراد بنجاح ('+(mode==='replace'?'استبدال':'دمج')+')');
+          importHint.textContent='✓ تم ('+(mode==='replace'?'استبدال':'دمج')+')';
           render();
         } catch(e){
-          alert('فشل الاستيراد: '+ e.message);
+          importHint.textContent='فشل: '+ e.message;
         } finally { fileInput.value=''; fileInput.dataset.mode='merge'; }
       };
     });
@@ -84,11 +95,11 @@
       <div class="card">
         <h3>استيراد/تصدير</h3>
         <p class="hint">يدعم JSON بالشكل المسطح أو شكل v6.5 (يكتشف تلقائيًا).</p>
-        <div class="row" style="margin-top:8px">
+        <div class="row" style="margin-top:8px" id="importRow">
           <button class="btn" id="exportBtn">تصدير JSON</button>
           <button class="btn" id="importMerge">استيراد (دمج)</button>
-          <button class="btn danger" id="importReplace">استيراد (استبدال)</button>
-          <input type="file" id="importFile" accept="application/json" style="display:none" data-mode="merge">
+          <button class="btn danger" id="importReplace">استيراد (استبدال)</button><span class="hint" id="importHint"></span>
+          <input type="file" id="importFile" accept="application/json,.json" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px" data-mode="merge">
         </div>
       </div>
     </div>
