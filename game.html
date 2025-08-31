@@ -22,7 +22,6 @@
   function buildBoard(){ const qs=listQuestions(); boardQuestions={}; selectedCats.forEach(cat=> boardQuestions[cat]={100:null,200:null,300:null,400:null,500:null}); [100,200,300,400,500].forEach(level=>{ selectedCats.forEach(cat=>{ const bucket=qs.filter(q=>q.category===cat && Number(q.level)===level); if(bucket.length) boardQuestions[cat][level]=pickRandom(bucket); }); }); }
   function renderBoard(){ const board=document.getElementById('board'); board.innerHTML=''; const head=document.createElement('div'); head.style.display='grid'; head.style.gridTemplateColumns='repeat(6,1fr)'; head.style.gap='12px'; selectedCats.forEach(cat=>{ const h=document.createElement('div'); h.className='tile'; h.style.minHeight='60px'; h.textContent=cat; head.appendChild(h); }); board.appendChild(head); [100,200,300,400,500].forEach(level=>{ const row=document.createElement('div'); row.className='board'; selectedCats.forEach(cat=>{ const q=boardQuestions[cat]?.[level]||null; const t=document.createElement('div'); t.className='tile'; t.textContent=level; if(!q) t.classList.add('disabled'); else t.onclick=()=> openModal(q,cat,level,t); row.appendChild(t); }); board.appendChild(row); }); }
 
-  // Modal & timer with auto-steal
   let timer=null, timeLeft=60, stage='regular'; // regular or steal
   let lifeline={ double:false, two:false };
   function updT(){ document.getElementById('timer').textContent=String(Math.floor(timeLeft/60)).padStart(2,'0')+':'+String(timeLeft%60).padStart(2,'0'); }
@@ -36,8 +35,7 @@
     const names=getTeamNames(); const s=getScores();
     const m=document.getElementById('modal'); m.style.display='grid';
     stage='regular'; lifeline={double:false, two:false}; timeLeft=60; updT();
-    document.getElementById('mTitle').textContent=cat+' • '+level;
-    document.getElementById('mStage').textContent=' — الدور: '+(s.turn==='A'?names.teamA:names.teamB);
+    document.getElementById('mTitle').textContent=cat+' • '+level+' — الدور: '+(s.turn==='A'?names.teamA:names.teamB);
     document.getElementById('mQ').textContent = q.q || '—';
     document.getElementById('mA').textContent = q.a || '';
     document.getElementById('mA').style.display='none';
@@ -48,7 +46,7 @@
     document.getElementById('startTimer').onclick=startT;
     document.getElementById('pauseTimer').onclick=stopT;
     document.getElementById('resetTimer').onclick=()=>{ stopT(); timeLeft=(stage==='steal'?10:60); updT(); };
-    document.getElementById('switchTurn').onclick=toSteal;
+    document.getElementById('switchTurnTop').onclick=toSteal; // moved above
     document.getElementById('plus20').onclick=plus20;
     document.getElementById('doublePts').onclick=()=>{ lifeline.double = !lifeline.double; document.getElementById('doublePts').classList.toggle('primary', lifeline.double); }
     document.getElementById('twoTries').onclick=()=>{ lifeline.two = !lifeline.two; document.getElementById('twoTries').classList.toggle('primary', lifeline.two); }
@@ -65,7 +63,7 @@
     document.getElementById('winNone').onclick=()=>{ switchTurn(); stopT(); m.style.display='none'; };
 
     tile.classList.add('disabled'); tile.onclick=null;
-    startT(); // start automatically
+    startT(); // auto-start
   }
 
   window.addEventListener('DOMContentLoaded',()=>{
@@ -139,6 +137,7 @@
         <button class="btn" id="startTimer" type="button">بدء</button>
         <button class="btn" id="pauseTimer" type="button">إيقاف</button>
         <button class="btn" id="resetTimer" type="button">إعادة</button>
+        <button class="btn" id="switchTurnTop" type="button">تبديل الدور (10ث)</button>
       </div>
     </div>
     <div style="margin-top:6px;font-weight:800" id="mQ">—</div>
@@ -149,7 +148,6 @@
     <div class="row" style="justify-content:space-between;margin-top:8px;flex-wrap:wrap">
       <span class="tag">وسائل مساعدة:</span>
       <div class="row">
-        <button class="btn" id="switchTurn" type="button">تبديل الدور (10ث)</button>
         <button class="btn" id="twoTries" type="button">إجابتان</button>
         <button class="btn" id="doublePts" type="button">×2 النقاط</button>
         <button class="btn" id="plus20" type="button">+20ث</button>

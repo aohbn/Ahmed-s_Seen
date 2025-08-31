@@ -1,4 +1,5 @@
 
+// ----- storage keys -----
 export const SETTINGS_KEY   = "sj:settings";
 export const QUESTIONS_KEY  = "sj:questions";
 export const PACKS_KEY      = "sj:packs";
@@ -9,6 +10,7 @@ export const SCORE_KEY      = "sj:scores";
 export const store = {
   get(key, fallback){ try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
   set(key, val){ localStorage.setItem(key, JSON.stringify(val)); },
+  clearAll(){ localStorage.removeItem(PACKS_KEY); localStorage.removeItem(QUESTIONS_KEY); localStorage.removeItem(SELECTED_CATS_KEY); }
 };
 
 (function initDefaults(){
@@ -20,7 +22,7 @@ export const store = {
   if(!store.get(SCORE_KEY,null))       store.set(SCORE_KEY, { A:0, B:0, turn:'A' });
 })();
 
-// Packs & Questions
+// ----- packs & questions -----
 export function listPacks(){ return store.get(PACKS_KEY,[]); }
 export function listQuestions(){ return store.get(QUESTIONS_KEY,[]); }
 export function questionsByPack(packId){ return listQuestions().filter(q=>q.pack===packId); }
@@ -37,6 +39,11 @@ export function deleteCategory(cat){
   store.set(PACKS_KEY, listPacks().filter(p=>p.category!==cat));
   store.set(QUESTIONS_KEY, listQuestions().filter(q=>q.category!==cat));
 }
+export function deleteAll(){
+  store.set(PACKS_KEY, []);
+  store.set(QUESTIONS_KEY, []);
+  store.set(SELECTED_CATS_KEY, []);
+}
 export function deleteQuestion(id){
   store.set(QUESTIONS_KEY, listQuestions().filter(q=>q.id!==id));
 }
@@ -47,7 +54,7 @@ export function addQuestion(q){
   const arr = listQuestions(); arr.push(item); store.set(QUESTIONS_KEY, arr); return item;
 }
 
-// Game state
+// ----- game state -----
 export function getTeamNames(){ return store.get(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' }); }
 export function setTeamNames(n){ store.set(TEAM_NAMES_KEY, { teamA:n.teamA||'الفريق 1', teamB:n.teamB||'الفريق 2' }); }
 export function getScores(){ return store.get(SCORE_KEY, {A:0,B:0,turn:'A'}); }
@@ -55,7 +62,7 @@ export function setScores(s){ store.set(SCORE_KEY, s); }
 export function setSelectedCategories(cats){ store.set(SELECTED_CATS_KEY, cats||[]); }
 export function getSelectedCategories(){ return store.get(SELECTED_CATS_KEY, []); }
 
-// Import/Export
+// ----- import/export -----
 export function exportAll(){
   const payload = { settings: store.get(SETTINGS_KEY,{}), packs: listPacks(), questions: listQuestions() };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
@@ -80,7 +87,7 @@ export function importAllFromText(text, mode='merge'){
   return true;
 }
 
-// Normalizer: flat or v6.5 or array with many key variants
+// ----- normalizer (supports v6.5 and many keys) -----
 function normalize(d){
   if (Array.isArray(d?.questions) && Array.isArray(d?.packs)) {
     return { packs: d.packs.map(p=>({id:p.id||slugify(p.name||'pack')+'-'+Math.random().toString(36).slice(2,6), name:p.name||'بدون اسم', category:p.category||p.cat||null})),

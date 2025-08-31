@@ -2,22 +2,30 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>سين جيم • الحِزم</title><link rel="stylesheet" href="/assets/style.css">
 <script type="module">
-  import { listPacks, questionsByPack, addPack, deletePack, deleteCategory, deleteQuestion, exportAll, importAllFromFile } from "/assets/app.js";
+  import { listPacks, questionsByPack, addPack, deletePack, deleteCategory, deleteQuestion, deleteAll, exportAll, importAllFromFile, store } from "/assets/app.js";
+
   function groupByCategory(packs){ const m=new Map(); packs.forEach(p=>{ const k=p.category||'غير مصنفة'; if(!m.has(k)) m.set(k,[]); m.get(k).push(p); }); return m; }
+
   function render(){ const root=document.getElementById('packsGrouped'); root.innerHTML=''; const packs=listPacks(); const grouped=groupByCategory(packs); if(!packs.length){ root.innerHTML='<div class="hint">لا توجد حِزم بعد.</div>'; return; } grouped.forEach((arr,cat)=>{ const card=document.createElement('div'); card.className='card'; card.innerHTML=`<div class="row" style="justify-content:space-between"><h3 class="cat-title" data-cat="\${cat}">\${cat}</h3><div class="row"><button class="btn danger del-cat" data-cat="\${cat}">حذف الفئة</button></div></div><div class="list packs" data-cat="\${cat}"></div>`; const list=card.querySelector('.list.packs'); arr.forEach(p=>{ const count=questionsByPack(p.id).length; const row=document.createElement('div'); row.className='list-item'; row.innerHTML=`<span>\${p.name}</span><div class="row"><span class="tag">\${count} سؤال</span><button class="btn view-pack" data-id="\${p.id}">عرض الأسئلة</button><button class="btn danger del-pack" data-id="\${p.id}">حذف</button></div>`; list.appendChild(row); }); root.appendChild(card); }); }
-  function showPackQuestions(packId){ const qs = questionsByPack(packId); const modal=document.getElementById('qModal'); const list=document.getElementById('qList'); list.innerHTML=''; qs.forEach(q=>{ const li=document.createElement('div'); li.className='list-item'; li.innerHTML=`<div style="max-width:70%"><div style="font-weight:700">[\${q.level}]</div> <div>\${q.q?.slice(0,160)||''}</div></div><button class="btn danger del-q" data-qid="\${q.id}">حذف السؤال</button>`; list.appendChild(li); }); modal.style.display='grid'; modal.dataset.packId=packId; }
+
+  function showPackQuestions(packId){ const qs = questionsByPack(packId); const modal=document.getElementById('qModal'); const list=document.getElementById('qList'); list.innerHTML=''; if(!qs.length) list.innerHTML='<div class="hint">لا أسئلة.</div>'; qs.forEach(q=>{ const li=document.createElement('div'); li.className='list-item'; li.innerHTML=`<div style="max-width:70%"><div style="font-weight:700">[\${q.level}]</div><div>\${q.q?.slice(0,200)||''}</div><div class="hint">الإجابة: \${q.a?.slice(0,120)||''}</div></div><button class="btn danger del-q" data-qid="\${q.id}">حذف السؤال</button>`; list.appendChild(li); }); modal.style.display='grid'; modal.dataset.packId=packId; }
+
   document.addEventListener('DOMContentLoaded',()=>{ render();
     document.getElementById('createBtn').onclick=()=>{ const n=(document.getElementById('packName').value||'').trim(); const c=(document.getElementById('packCat').value||'').trim()||'غير مصنفة'; if(!n) return; addPack(n,c); document.getElementById('packName').value=''; render(); };
     document.getElementById('exportBtn').onclick=exportAll;
+    document.getElementById('wipeBtn').onclick=()=>{ if(confirm('حذف جميع الحِزم والأسئلة؟')){ deleteAll(); render(); } };
+    document.getElementById('resetLS').onclick=()=>{ if(confirm('تفريغ تخزين المتصفح (الحِزم/الأسئلة)؟')){ store.clearAll(); location.reload(); } };
+
     const fileInput=document.getElementById('importFile'); document.getElementById('importMerge').onclick=()=>{ fileInput.dataset.mode='merge'; fileInput.value=''; fileInput.click(); }; document.getElementById('importReplace').onclick=()=>{ fileInput.dataset.mode='replace'; fileInput.value=''; fileInput.click(); };
     fileInput.onchange=async()=>{ if(!fileInput.files.length) return; const mode=fileInput.dataset.mode||'merge'; try{ await importAllFromFile(fileInput.files[0], mode); document.getElementById('status').textContent='✓ تم الاستيراد'; render(); }catch(e){ document.getElementById('status').textContent='فشل: '+e.message; } };
-    // Global delegation (works after re-render)
-    document.addEventListener('click',e=>{ const t=e.target;
-      if(t.classList.contains('del-pack')){ if(confirm('حذف الحزمة؟')){ deletePack(t.dataset.id); render(); } }
-      if(t.classList.contains('del-cat')){ if(confirm('حذف كل حِزم هذه الفئة وكل أسئلتها؟')){ deleteCategory(t.dataset.cat); render(); } }
-      if(t.classList.contains('view-pack')){ showPackQuestions(t.dataset.id); }
-      if(t.classList.contains('del-q')){ if(confirm('حذف هذا السؤال؟')){ deleteQuestion(t.dataset.qid); showPackQuestions(document.getElementById('qModal').dataset.packId); render(); } }
-      if(t.id==='closeQModal'){ document.getElementById('qModal').style.display='none'; }
+
+    // Robust event delegation (works even if you click a child element)
+    document.addEventListener('click',e=>{ 
+      const delPackBtn = e.target.closest('button.del-pack'); if(delPackBtn){ if(confirm('حذف الحزمة؟')){ deletePack(delPackBtn.dataset.id); render(); } return; }
+      const delCatBtn = e.target.closest('button.del-cat'); if(delCatBtn){ if(confirm('حذف كل حِزم هذه الفئة وكل أسئلتها؟')){ deleteCategory(delCatBtn.dataset.cat); render(); } return; }
+      const viewBtn = e.target.closest('button.view-pack'); if(viewBtn){ showPackQuestions(viewBtn.dataset.id); return; }
+      const delQBtn = e.target.closest('button.del-q'); if(delQBtn){ if(confirm('حذف هذا السؤال؟')){ deleteQuestion(delQBtn.dataset.qid); showPackQuestions(document.getElementById('qModal').dataset.packId); render(); } return; }
+      if(e.target.id==='closeQModal') document.getElementById('qModal').style.display='none';
     });
   });
 </script></head>
@@ -49,13 +57,14 @@
         <button class="btn" id="importMerge" type="button">استيراد (دمج)</button>
         <button class="btn danger" id="importReplace" type="button">استيراد (استبدال)</button>
         <button class="btn" id="exportBtn" type="button">تصدير JSON</button>
+        <button class="btn danger" id="wipeBtn" type="button">حذف كل الحِزم</button>
+        <button class="btn" id="resetLS" type="button">تفريغ البيانات</button>
         <span class="hint" id="status"></span>
       </div>
     </div>
   </div>
 </main>
 
-<!-- Questions Modal -->
 <div class="backdrop" id="qModal" style="display:none">
   <div class="modal">
     <div class="row" style="justify-content:space-between"><h3>أسئلة الحزمة</h3><button class="btn" id="closeQModal" type="button">إغلاق ✕</button></div>
