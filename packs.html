@@ -3,42 +3,15 @@
 <title>سين جيم • الحِزم</title><link rel="stylesheet" href="/assets/style.css">
 <script type="module">
   import { listPacks, addPack, deletePack, deleteCategory, exportAll, importAllFromFile } from "/assets/app.js";
-
-  function groupByCategory(packs){
-    const m = new Map();
-    packs.forEach(p=>{ const k=p.category||'غير مصنفة'; if(!m.has(k)) m.set(k, []); m.get(k).push(p); });
-    return m;
-  }
-
-  function render(){
-    const root = document.getElementById('packsGrouped'); root.innerHTML='';
-    const packs = listPacks();
-    const grouped = groupByCategory(packs);
-    if (!packs.length) { root.innerHTML = '<div class="hint">لا توجد حِزم بعد.</div>'; return; }
-    grouped.forEach((arr,cat)=>{
-      const card = document.createElement('div'); card.className='card';
-      card.innerHTML = `<div class="row" style="justify-content:space-between"><h3>${cat}</h3><button class="btn danger" data-del-cat="\${cat}">حذف الفئة</button></div><div class="list"></div>`;
-      const list = card.querySelector('.list');
-      arr.forEach(p=>{ const row=document.createElement('div'); row.className='list-item';
-        row.innerHTML = `<span>${p.name}</span><button class="btn danger" data-del="\${p.id}">حذف</button>`; list.appendChild(row); });
-      root.appendChild(card);
-    });
-    root.querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ if(confirm('حذف الحزمة؟')){ deletePack(b.dataset.del); render(); } });
-    root.querySelectorAll('[data-del-cat]').forEach(b=> b.onclick=()=>{ if(confirm('حذف كل حِزم هذه الفئة وكل أسئلتها؟')){ deleteCategory(b.dataset.delCat); render(); } });
-  }
-
-  window.addEventListener('DOMContentLoaded',()=>{
-    render();
-    document.getElementById('createBtn').onclick = ()=>{
-      const n=(document.getElementById('packName').value||'').trim();
-      const c=(document.getElementById('packCat').value||'').trim()||'غير مصنفة';
-      if(!n) return; try{ addPack(n,c); document.getElementById('packName').value=''; render(); }catch(e){ alert(e.message); }
-    };
-    document.getElementById('exportBtn').onclick = exportAll;
-    const fileInput=document.getElementById('importFile');
-    document.getElementById('importMerge').onclick=()=>{ fileInput.dataset.mode='merge'; fileInput.value=''; fileInput.click(); };
-    document.getElementById('importReplace').onclick=()=>{ fileInput.dataset.mode='replace'; fileInput.value=''; fileInput.click(); };
+  function groupByCategory(packs){ const m=new Map(); packs.forEach(p=>{ const k=p.category||'غير مصنفة'; if(!m.has(k)) m.set(k,[]); m.get(k).push(p); }); return m; }
+  function render(){ const root=document.getElementById('packsGrouped'); root.innerHTML=''; const packs=listPacks(); const grouped=groupByCategory(packs); if(!packs.length){ root.innerHTML='<div class="hint">لا توجد حِزم بعد.</div>'; return; } grouped.forEach((arr,cat)=>{ const card=document.createElement('div'); card.className='card'; card.innerHTML=`<div class="row" style="justify-content:space-between"><h3>${cat}</h3><button class="btn danger del-cat" data-cat="\${cat}">حذف الفئة</button></div><div class="list"></div>`; const list=card.querySelector('.list'); arr.forEach(p=>{ const row=document.createElement('div'); row.className='list-item'; row.innerHTML=`<span>\${p.name}</span><button class="btn danger del-pack" data-id="\${p.id}">حذف</button>`; list.appendChild(row); }); root.appendChild(card); }); }
+  document.addEventListener('DOMContentLoaded',()=>{ render();
+    document.getElementById('createBtn').onclick=()=>{ const n=(document.getElementById('packName').value||'').trim(); const c=(document.getElementById('packCat').value||'').trim()||'غير مصنفة'; if(!n) return; addPack(n,c); document.getElementById('packName').value=''; render(); };
+    document.getElementById('exportBtn').onclick=exportAll;
+    const fileInput=document.getElementById('importFile'); document.getElementById('importMerge').onclick=()=>{ fileInput.dataset.mode='merge'; fileInput.value=''; fileInput.click(); }; document.getElementById('importReplace').onclick=()=>{ fileInput.dataset.mode='replace'; fileInput.value=''; fileInput.click(); };
     fileInput.onchange=async()=>{ if(!fileInput.files.length) return; const mode=fileInput.dataset.mode||'merge'; try{ await importAllFromFile(fileInput.files[0], mode); document.getElementById('status').textContent='✓ تم الاستيراد'; render(); }catch(e){ document.getElementById('status').textContent='فشل: '+e.message; } };
+    // event delegation for delete buttons
+    document.getElementById('packsGrouped').addEventListener('click',e=>{ const t=e.target; if(t.classList.contains('del-pack')){ if(confirm('حذف الحزمة؟')){ deletePack(t.dataset.id); render(); } } if(t.classList.contains('del-cat')){ if(confirm('حذف كل حِزم هذه الفئة وكل أسئلتها؟')){ deleteCategory(t.dataset.cat); render(); } } });
   });
 </script></head>
 <body>

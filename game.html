@@ -7,15 +7,15 @@
 
   let selectedCats=[]; let boardQuestions={};
 
-  // --- Scoreboard ---
+  // Scoreboard
   function renderScore(){
-    const names = getTeamNames(); const s = getScores();
-    document.getElementById('nameA').textContent = names.teamA; document.getElementById('nameB').textContent = names.teamB;
-    document.getElementById('scoreA').textContent = s.A; document.getElementById('scoreB').textContent = s.B;
-    document.getElementById('turn').textContent = (s.turn==='A'? names.teamA : names.teamB);
+    const names=getTeamNames(); const s=getScores();
+    document.getElementById('nameA').textContent=names.teamA; document.getElementById('nameB').textContent=names.teamB;
+    document.getElementById('scoreA').textContent=s.A; document.getElementById('scoreB').textContent=s.B;
+    document.getElementById('turn').textContent=(s.turn==='A'?names.teamA:names.teamB);
   }
   function addPoints(team, pts){ const s=getScores(); s[team]+=pts; setScores(s); renderScore(); }
-  function switchTurn(){ const s=getScores(); s.turn = (s.turn==='A'?'B':'A'); setScores(s); renderScore(); }
+  function switchTurn(){ const s=getScores(); s.turn=(s.turn==='A'?'B':'A'); setScores(s); renderScore(); }
 
   function allCategories(){ return Array.from(new Set(listQuestions().map(q=>q.category).filter(Boolean))); }
   function renderSetup(){ const all=allCategories(); const wrap=document.getElementById('cats'); wrap.innerHTML=''; const saved=getSelectedCategories().filter(c=>all.includes(c)); selectedCats=saved.length?saved.slice(0,6):all.slice(0,6); all.forEach(c=>{ const el=document.createElement('div'); el.className='cat'+(selectedCats.includes(c)?' active':''); el.textContent=c; el.onclick=()=>{ if(selectedCats.includes(c)) selectedCats=selectedCats.filter(x=>x!==c); else if(selectedCats.length<6) selectedCats.push(c); setSelectedCategories(selectedCats); renderSetup(); }; wrap.appendChild(el); }); document.getElementById('selCount').textContent=(selectedCats?.length||0)+'/6'; document.getElementById('startBtn').disabled=(selectedCats.length!==6); document.getElementById('noData').style.display=all.length?'none':'block'; }
@@ -23,38 +23,48 @@
   function buildBoard(){ const qs=listQuestions(); boardQuestions={}; selectedCats.forEach(cat=> boardQuestions[cat]={100:null,200:null,300:null,400:null,500:null}); [100,200,300,400,500].forEach(level=>{ selectedCats.forEach(cat=>{ const bucket=qs.filter(q=>q.category===cat && Number(q.level)===level); if(bucket.length) boardQuestions[cat][level]=pickRandom(bucket); }); }); }
   function renderBoard(){ const board=document.getElementById('board'); board.innerHTML=''; const head=document.createElement('div'); head.style.display='grid'; head.style.gridTemplateColumns='repeat(6,1fr)'; head.style.gap='12px'; selectedCats.forEach(cat=>{ const h=document.createElement('div'); h.className='tile'; h.style.minHeight='60px'; h.textContent=cat; head.appendChild(h); }); board.appendChild(head); [100,200,300,400,500].forEach(level=>{ const row=document.createElement('div'); row.className='board'; selectedCats.forEach(cat=>{ const q=boardQuestions[cat]?.[level]||null; const t=document.createElement('div'); t.className='tile'; t.textContent=level; if(!q) t.classList.add('disabled'); else t.onclick=()=> openModal(q,cat,level,t); row.appendChild(t); }); board.appendChild(row); }); }
 
-  // --- Modal & Timer & Answer Flow (steal) ---
-  let timer=null, timeLeft=60, mode='regular'; // mode: regular or steal
+  // Modal & timer with auto-steal
+  let timer=null, timeLeft=60, stage='regular'; // stage: 'regular' (current team) or 'steal' (other team)
   function updT(){ document.getElementById('timer').textContent=String(Math.floor(timeLeft/60)).padStart(2,'0')+':'+String(timeLeft%60).padStart(2,'0'); }
-  function startT(){ stopT(); timer=setInterval(()=>{ if(timeLeft<=0){ stopT(); } else { timeLeft--; updT(); } },1000); }
+  function startT(){ stopT(); timer=setInterval(()=>{ if(timeLeft<=0){ stopT(); onTimeUp(); } else { timeLeft--; updT(); } },1000); }
   function stopT(){ if(timer){ clearInterval(timer); timer=null; } }
+  function onTimeUp(){ // if in regular stage, switch to steal
+    const names=getTeamNames(); const s=getScores();
+    if(stage==='regular'){ stage='steal'; s.turn=(s.turn==='A'?'B':'A'); setScores(s); renderScore(); timeLeft=10; updT();
+      document.getElementById('mStage').textContent=' — السرقة: '+(s.turn==='A'?names.teamA:names.teamB)+' (10ث)';
+    } else { document.getElementById('mStage').textContent=''; }
+  }
 
   function openModal(q,cat,level,tile){
     const names=getTeamNames(); const s=getScores();
     const m=document.getElementById('modal'); m.style.display='grid';
-    document.getElementById('mTitle').textContent=cat+' • '+level+'  —  الدور: '+(s.turn==='A'? names.teamA:names.teamB);
+    stage='regular'; timeLeft=60; updT();
+    document.getElementById('mTitle').textContent=cat+' • '+level;
+    document.getElementById('mStage').textContent=' — الدور: '+(s.turn==='A'?names.teamA:names.teamB);
     document.getElementById('mQ').textContent = q.q || '—';
     document.getElementById('mA').textContent = q.a || '';
     document.getElementById('mA').style.display='none';
     const img=document.getElementById('mImg'); if(q.img){ img.src=q.img; img.style.display='block'; } else img.style.display='none';
-    mode='regular'; timeLeft=60; updT();
 
-    // Control bindings
+    // Controls
     document.getElementById('showA').onclick=()=>{ const el=document.getElementById('mA'); el.style.display=(el.style.display==='none'?'block':'none'); };
     document.getElementById('startTimer').onclick=startT;
     document.getElementById('pauseTimer').onclick=stopT;
-    document.getElementById('resetTimer').onclick=()=>{ stopT(); timeLeft=(mode==='steal'?10:60); updT(); };
+    document.getElementById('resetTimer').onclick=()=>{ stopT(); timeLeft=(stage==='steal'?10:60); updT(); };
+    document.getElementById('toSteal').onclick=()=>{ // manual switch to steal without showing "خطأ"
+      if(stage==='steal') return; const s=getScores(); s.turn=(s.turn==='A'?'B':'A'); setScores(s); renderScore(); stage='steal'; timeLeft=10; updT();
+      document.getElementById('mStage').textContent=' — السرقة: '+(s.turn==='A'?names.teamA:names.teamB)+' (10ث)';
+    };
     document.getElementById('closeM').onclick=()=>{ stopT(); m.style.display='none'; };
 
-    // Result buttons
-    document.getElementById('btnCorrect').onclick=()=>{ const s=getScores(); const team=s.turn; addPoints(team, level); switchTurn(); stopT(); m.style.display='none'; };
-    document.getElementById('btnWrong').onclick=()=>{ // start steal for the other team
-      const s=getScores(); s.turn = (s.turn==='A'?'B':'A'); setScores(s); renderScore();
-      mode='steal'; timeLeft=10; updT(); startT();
-      document.getElementById('mTitle').textContent=cat+' • '+level+'  —  الدور: '+(s.turn==='A'? names.teamA:names.teamB)+' (سرقة 10ث)';
-    };
-    document.getElementById('btnStealWin').onclick=()=>{ const s=getScores(); const team=s.turn; addPoints(team, level); switchTurn(); stopT(); m.style.display='none'; };
-    document.getElementById('btnNoOne').onclick=()=>{ switchTurn(); stopT(); m.style.display='none'; };
+    // Winner buttons — choose who answered AFTER reveal (or anytime)
+    const labelCur = (s.turn==='A'?names.teamA:names.teamB);
+    const labelOth = (s.turn==='A'?names.teamB:names.teamA);
+    document.getElementById('winCur').textContent='الفائز: '+labelCur+' ✔';
+    document.getElementById('winOth').textContent='الفائز: '+labelOth+' ✔';
+    document.getElementById('winCur').onclick=()=>{ const team=getScores().turn; addPoints(team, level); switchTurn(); stopT(); m.style.display='none'; };
+    document.getElementById('winOth').onclick=()=>{ const s=getScores(); const team=(s.turn==='A'?'B':'A'); addPoints(team, level); switchTurn(); stopT(); m.style.display='none'; };
+    document.getElementById('winNone').onclick=()=>{ switchTurn(); stopT(); m.style.display='none'; };
 
     tile.classList.add('disabled'); tile.onclick=null;
   }
@@ -63,7 +73,7 @@
     renderScore();
     renderSetup();
     const t=getTeamNames(); document.getElementById('teamA').value=t.teamA; document.getElementById('teamB').value=t.teamB;
-    document.getElementById('saveTeams').onclick=()=>{ setTeamNames({teamA:document.getElementById('teamA').value||'الفريق أ', teamB:document.getElementById('teamB').value||'الفريق ب'}); renderScore(); };
+    document.getElementById('saveTeams').onclick=()=>{ setTeamNames({teamA:document.getElementById('teamA').value||'الفريق 1', teamB:document.getElementById('teamB').value||'الفريق 2'}); renderScore(); };
     document.getElementById('startBtn').onclick=()=>{ buildBoard(); renderBoard(); document.getElementById('setup').style.display='none'; document.getElementById('play').style.display='block'; };
     document.getElementById('swapTurn').onclick=()=>{ switchTurn(); };
     document.getElementById('resetScore').onclick=()=>{ setScores({A:0,B:0,turn:'A'}); renderScore(); };
@@ -85,8 +95,8 @@
         <button class="btn" id="swapTurn">تبديل الدور</button>
       </div>
       <div class="row" style="gap:16px">
-        <span class="tag"><b id="nameA">فريق أ</b> • <span id="scoreA">0</span></span>
-        <span class="tag"><b id="nameB">فريق ب</b> • <span id="scoreB">0</span></span>
+        <span class="tag"><b id="nameA">فريق 1</b> • <span id="scoreA">0</span></span>
+        <span class="tag"><b id="nameB">فريق 2</b> • <span id="scoreB">0</span></span>
         <button class="btn danger" id="resetScore">تصفير النقاط</button>
       </div>
     </div>
@@ -102,8 +112,8 @@
     <div class="card">
       <h3>أسماء الفرق</h3>
       <div class="grid">
-        <label>الفريق أ <input id="teamA" class="input" placeholder="الفريق أ"></label>
-        <label>الفريق ب <input id="teamB" class="input" placeholder="الفريق ب"></label>
+        <label>الفريق 1 <input id="teamA" class="input" placeholder="الفريق 1"></label>
+        <label>الفريق 2 <input id="teamB" class="input" placeholder="الفريق 2"></label>
       </div>
       <div class="row" style="margin-top:10px"><button class="btn" id="saveTeams">حفظ</button></div>
       <div id="noData" class="hint" style="margin-top:14px;display:none">لا توجد أسئلة بعد — استورد من صفحة الحِزم.</div>
@@ -121,7 +131,7 @@
 <div class="backdrop" id="modal">
   <div class="modal">
     <div class="row" style="justify-content:space-between">
-      <h3 id="mTitle" style="margin:0">—</h3>
+      <h3 style="margin:0"><span id="mTitle">—</span><span id="mStage"></span></h3>
       <button class="btn" id="closeM">إغلاق ✕</button>
     </div>
     <div class="row" style="justify-content:space-between;margin:6px 0;flex-wrap:wrap">
@@ -130,6 +140,7 @@
         <button class="btn" id="startTimer">بدء</button>
         <button class="btn" id="pauseTimer">إيقاف</button>
         <button class="btn" id="resetTimer">إعادة</button>
+        <button class="btn" id="toSteal">سرقة الآن (10ث)</button>
       </div>
     </div>
     <div style="margin-top:6px;font-weight:800" id="mQ">—</div>
@@ -140,10 +151,9 @@
     <div class="row" style="justify-content:space-between;margin-top:10px;flex-wrap:wrap">
       <span class="tag">تحديد الفائز بالسؤال:</span>
       <div class="row">
-        <button class="btn primary" id="btnCorrect">✔ إجابة صحيحة (الفريق الحالي)</button>
-        <button class="btn" id="btnWrong">✘ خطأ → فرصة للفريق الآخر (10ث)</button>
-        <button class="btn" id="btnStealWin">✔ أجاب الفريق الآخر</button>
-        <button class="btn danger" id="btnNoOne">لا أحد</button>
+        <button class="btn primary" id="winCur">الفائز: الفريق الحالي</button>
+        <button class="btn" id="winOth">الفائز: الفريق الآخر</button>
+        <button class="btn danger" id="winNone">لا أحد</button>
       </div>
     </div>
   </div>
