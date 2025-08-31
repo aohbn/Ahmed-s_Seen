@@ -3,6 +3,7 @@ export const SETTINGS_KEY   = "sj:settings";
 export const QUESTIONS_KEY  = "sj:questions";
 export const PACKS_KEY      = "sj:packs";
 export const SELECTED_CATS_KEY = "sj:selectedCats";
+export const SELECTED_PACKS_KEY = "sj:selectedPacks";
 export const TEAM_NAMES_KEY = "sj:teamNames";
 export const SCORE_KEY      = "sj:scores";
 
@@ -21,6 +22,7 @@ function defaultScores(){
   if(!store.get(PACKS_KEY,null))    store.set(PACKS_KEY, []);
   if(!store.get(QUESTIONS_KEY,null)) store.set(QUESTIONS_KEY, []);
   if(!store.get(SELECTED_CATS_KEY,null)) store.set(SELECTED_CATS_KEY, []);
+  if(!store.get(SELECTED_PACKS_KEY,null)) store.set(SELECTED_PACKS_KEY, {});
   if(!store.get(TEAM_NAMES_KEY,null)) store.set(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' });
   if(!store.get(SCORE_KEY,null))       store.set(SCORE_KEY, defaultScores());
 })();
@@ -81,6 +83,8 @@ export function getScores(){
 export function setScores(s){ store.set(SCORE_KEY, s); }
 export function setSelectedCategories(cats){ store.set(SELECTED_CATS_KEY, cats||[]); }
 export function getSelectedCategories(){ return store.get(SELECTED_CATS_KEY, []); }
+export function setSelectedPacks(map){ store.set(SELECTED_PACKS_KEY, map||{}); }
+export function getSelectedPacks(){ return store.get(SELECTED_PACKS_KEY, {}); }
 
 // ---------- Import/Export ----------
 export function exportAll(){

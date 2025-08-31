@@ -54,3 +54,7 @@ footer{padding:30px 12px;color:var(--muted);text-align:center}
 
 #imgViewer{z-index:200}
 #imgViewer .modal{max-width:92vw}
+
+/* Question image thumbnail */
+.thumb-img{max-height:22vh;max-width:100%;object-fit:contain;border-radius:12px;border:1px solid #e2e8f0;cursor:zoom-in;margin-top:8px}
+#imgViewer{z-index:999}
