@@ -3,9 +3,19 @@
 <title>سين جيم • البدء</title><link rel="stylesheet" href="/assets/style.css">
 <style>.catSel{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}.cat{border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:12px;text-align:center;cursor:pointer;background:rgba(255,255,255,.05)}.cat.active{box-shadow:0 0 0 3px rgba(110,231,243,.35) inset}</style>
 <script type="module">
-  import { listQuestions, getSelectedCategories, setSelectedCategories, getTeamNames, setTeamNames } from "/assets/app.js";
+  import { listQuestions, getSelectedCategories, setSelectedCategories, getTeamNames, setTeamNames, getScores, setScores } from "/assets/app.js";
 
   let selectedCats=[]; let boardQuestions={};
+
+  // --- Scoreboard ---
+  function renderScore(){
+    const names = getTeamNames(); const s = getScores();
+    document.getElementById('nameA').textContent = names.teamA; document.getElementById('nameB').textContent = names.teamB;
+    document.getElementById('scoreA').textContent = s.A; document.getElementById('scoreB').textContent = s.B;
+    document.getElementById('turn').textContent = (s.turn==='A'? names.teamA : names.teamB);
+  }
+  function addPoints(team, pts){ const s=getScores(); s[team]+=pts; setScores(s); renderScore(); }
+  function switchTurn(){ const s=getScores(); s.turn = (s.turn==='A'?'B':'A'); setScores(s); renderScore(); }
 
   function allCategories(){ return Array.from(new Set(listQuestions().map(q=>q.category).filter(Boolean))); }
   function renderSetup(){ const all=allCategories(); const wrap=document.getElementById('cats'); wrap.innerHTML=''; const saved=getSelectedCategories().filter(c=>all.includes(c)); selectedCats=saved.length?saved.slice(0,6):all.slice(0,6); all.forEach(c=>{ const el=document.createElement('div'); el.className='cat'+(selectedCats.includes(c)?' active':''); el.textContent=c; el.onclick=()=>{ if(selectedCats.includes(c)) selectedCats=selectedCats.filter(x=>x!==c); else if(selectedCats.length<6) selectedCats.push(c); setSelectedCategories(selectedCats); renderSetup(); }; wrap.appendChild(el); }); document.getElementById('selCount').textContent=(selectedCats?.length||0)+'/6'; document.getElementById('startBtn').disabled=(selectedCats.length!==6); document.getElementById('noData').style.display=all.length?'none':'block'; }
@@ -13,42 +23,50 @@
   function buildBoard(){ const qs=listQuestions(); boardQuestions={}; selectedCats.forEach(cat=> boardQuestions[cat]={100:null,200:null,300:null,400:null,500:null}); [100,200,300,400,500].forEach(level=>{ selectedCats.forEach(cat=>{ const bucket=qs.filter(q=>q.category===cat && Number(q.level)===level); if(bucket.length) boardQuestions[cat][level]=pickRandom(bucket); }); }); }
   function renderBoard(){ const board=document.getElementById('board'); board.innerHTML=''; const head=document.createElement('div'); head.style.display='grid'; head.style.gridTemplateColumns='repeat(6,1fr)'; head.style.gap='12px'; selectedCats.forEach(cat=>{ const h=document.createElement('div'); h.className='tile'; h.style.minHeight='60px'; h.textContent=cat; head.appendChild(h); }); board.appendChild(head); [100,200,300,400,500].forEach(level=>{ const row=document.createElement('div'); row.className='board'; selectedCats.forEach(cat=>{ const q=boardQuestions[cat]?.[level]||null; const t=document.createElement('div'); t.className='tile'; t.textContent=level; if(!q) t.classList.add('disabled'); else t.onclick=()=> openModal(q,cat,level,t); row.appendChild(t); }); board.appendChild(row); }); }
 
-  // --- Modal & Timer & Lifelines ---
-  let timer=null, timeLeft=60; const lifelines={ plus10:1, skip:1, reveal:1 };
+  // --- Modal & Timer & Answer Flow (steal) ---
+  let timer=null, timeLeft=60, mode='regular'; // mode: regular or steal
   function updT(){ document.getElementById('timer').textContent=String(Math.floor(timeLeft/60)).padStart(2,'0')+':'+String(timeLeft%60).padStart(2,'0'); }
-  function startT(){ stopT(); timer=setInterval(()=>{ if(timeLeft<=0){stopT();} else{ timeLeft--; updT(); } },1000); }
+  function startT(){ stopT(); timer=setInterval(()=>{ if(timeLeft<=0){ stopT(); } else { timeLeft--; updT(); } },1000); }
   function stopT(){ if(timer){ clearInterval(timer); timer=null; } }
 
-  function setLLState(){
-    document.getElementById('llPlus10').disabled = lifelines.plus10<=0;
-    document.getElementById('llSkip').disabled   = lifelines.skip<=0;
-    document.getElementById('llReveal').disabled = lifelines.reveal<=0;
-  }
-
   function openModal(q,cat,level,tile){
+    const names=getTeamNames(); const s=getScores();
     const m=document.getElementById('modal'); m.style.display='grid';
-    document.getElementById('mTitle').textContent=cat+' • '+level;
-    document.getElementById('mQ').textContent=q.q;
-    document.getElementById('mA').textContent=q.a; document.getElementById('mA').style.display='none';
+    document.getElementById('mTitle').textContent=cat+' • '+level+'  —  الدور: '+(s.turn==='A'? names.teamA:names.teamB);
+    document.getElementById('mQ').textContent = q.q || '—';
+    document.getElementById('mA').textContent = q.a || '';
+    document.getElementById('mA').style.display='none';
     const img=document.getElementById('mImg'); if(q.img){ img.src=q.img; img.style.display='block'; } else img.style.display='none';
-    timeLeft=60; updT(); setLLState();
+    mode='regular'; timeLeft=60; updT();
+
+    // Control bindings
     document.getElementById('showA').onclick=()=>{ const el=document.getElementById('mA'); el.style.display=(el.style.display==='none'?'block':'none'); };
     document.getElementById('startTimer').onclick=startT;
     document.getElementById('pauseTimer').onclick=stopT;
-    document.getElementById('resetTimer').onclick=()=>{ stopT(); timeLeft=60; updT(); };
+    document.getElementById('resetTimer').onclick=()=>{ stopT(); timeLeft=(mode==='steal'?10:60); updT(); };
     document.getElementById('closeM').onclick=()=>{ stopT(); m.style.display='none'; };
 
-    // lifelines
-    document.getElementById('llPlus10').onclick=()=>{ if(lifelines.plus10<=0) return; lifelines.plus10--; timeLeft+=10; updT(); setLLState(); };
-    document.getElementById('llSkip').onclick=()=>{ if(lifelines.skip<=0) return; lifelines.skip--; stopT(); m.style.display='none'; };
-    document.getElementById('llReveal').onclick=()=>{ if(lifelines.reveal<=0) return; lifelines.reveal--; document.getElementById('mA').style.display='block'; setLLState(); };
+    // Result buttons
+    document.getElementById('btnCorrect').onclick=()=>{ const s=getScores(); const team=s.turn; addPoints(team, level); switchTurn(); stopT(); m.style.display='none'; };
+    document.getElementById('btnWrong').onclick=()=>{ // start steal for the other team
+      const s=getScores(); s.turn = (s.turn==='A'?'B':'A'); setScores(s); renderScore();
+      mode='steal'; timeLeft=10; updT(); startT();
+      document.getElementById('mTitle').textContent=cat+' • '+level+'  —  الدور: '+(s.turn==='A'? names.teamA:names.teamB)+' (سرقة 10ث)';
+    };
+    document.getElementById('btnStealWin').onclick=()=>{ const s=getScores(); const team=s.turn; addPoints(team, level); switchTurn(); stopT(); m.style.display='none'; };
+    document.getElementById('btnNoOne').onclick=()=>{ switchTurn(); stopT(); m.style.display='none'; };
 
     tile.classList.add('disabled'); tile.onclick=null;
   }
 
-  window.addEventListener('DOMContentLoaded',()=>{ renderSetup(); const t=getTeamNames(); document.getElementById('teamA').value=t.teamA; document.getElementById('teamB').value=t.teamB;
-    document.getElementById('saveTeams').onclick=()=>{ setTeamNames({teamA:document.getElementById('teamA').value||'الفريق 1', teamB:document.getElementById('teamB').value||'الفريق 2'}); alert('تم الحفظ'); };
+  window.addEventListener('DOMContentLoaded',()=>{
+    renderScore();
+    renderSetup();
+    const t=getTeamNames(); document.getElementById('teamA').value=t.teamA; document.getElementById('teamB').value=t.teamB;
+    document.getElementById('saveTeams').onclick=()=>{ setTeamNames({teamA:document.getElementById('teamA').value||'الفريق أ', teamB:document.getElementById('teamB').value||'الفريق ب'}); renderScore(); };
     document.getElementById('startBtn').onclick=()=>{ buildBoard(); renderBoard(); document.getElementById('setup').style.display='none'; document.getElementById('play').style.display='block'; };
+    document.getElementById('swapTurn').onclick=()=>{ switchTurn(); };
+    document.getElementById('resetScore').onclick=()=>{ setScores({A:0,B:0,turn:'A'}); renderScore(); };
   });
 </script></head>
 <body>
@@ -60,13 +78,44 @@
     </div>
   </header>
 <main class="container">
-  <div id="setup" class="grid cols-2">
-    <div id="noData" class="card" style="display:none"><h2>لا توجد أسئلة بعد</h2><p class="hint">استورد JSON من صفحة <b>الحِزم</b> ثم عد إلى هنا.</p></div>
-    <div class="card"><h2>اختر 6 فئات</h2><p class="hint">مجمّعة من كل الحِزم المستوردة.</p><div class="catSel" id="cats"></div>
-      <div class="row" style="justify-content:space-between;margin-top:10px"><span class="tag" id="selCount">0/6</span><button class="btn primary" id="startBtn" disabled>بدء اللعبة</button></div></div>
-    <div class="card"><h3>أسماء الفرق</h3><div class="grid"><label>الفريق 1 <input id="teamA" class="input" placeholder="الفريق 1"></label><label>الفريق 2 <input id="teamB" class="input" placeholder="الفريق 2"></label></div><div class="row" style="margin-top:10px"><button class="btn" id="saveTeams">حفظ</button></div></div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap">
+      <div class="row" style="gap:16px">
+        <span class="tag">الدور: <b id="turn">—</b></span>
+        <button class="btn" id="swapTurn">تبديل الدور</button>
+      </div>
+      <div class="row" style="gap:16px">
+        <span class="tag"><b id="nameA">فريق أ</b> • <span id="scoreA">0</span></span>
+        <span class="tag"><b id="nameB">فريق ب</b> • <span id="scoreB">0</span></span>
+        <button class="btn danger" id="resetScore">تصفير النقاط</button>
+      </div>
+    </div>
   </div>
-  <div id="play" style="display:none"><div class="card"><h2>لوحة الأسئلة</h2><div id="board"></div></div></div>
+
+  <div id="setup" class="grid cols-2">
+    <div class="card">
+      <h2>اختر 6 فئات</h2>
+      <p class="hint">مجمّعة من كل الحِزم المستوردة.</p>
+      <div class="catSel" id="cats"></div>
+      <div class="row" style="justify-content:space-between;margin-top:10px"><span class="tag" id="selCount">0/6</span><button class="btn primary" id="startBtn" disabled>بدء اللعبة</button></div>
+    </div>
+    <div class="card">
+      <h3>أسماء الفرق</h3>
+      <div class="grid">
+        <label>الفريق أ <input id="teamA" class="input" placeholder="الفريق أ"></label>
+        <label>الفريق ب <input id="teamB" class="input" placeholder="الفريق ب"></label>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="btn" id="saveTeams">حفظ</button></div>
+      <div id="noData" class="hint" style="margin-top:14px;display:none">لا توجد أسئلة بعد — استورد من صفحة الحِزم.</div>
+    </div>
+  </div>
+
+  <div id="play" style="display:none">
+    <div class="card">
+      <h2>لوحة الأسئلة</h2>
+      <div id="board"></div>
+    </div>
+  </div>
 </main>
 
 <div class="backdrop" id="modal">
@@ -82,18 +131,20 @@
         <button class="btn" id="pauseTimer">إيقاف</button>
         <button class="btn" id="resetTimer">إعادة</button>
       </div>
-      <div class="row">
-        <span class="tag">وسائل مساعدة:</span>
-        <button class="btn" id="llPlus10">+10ث</button>
-        <button class="btn" id="llSkip">تخطي</button>
-        <button class="btn" id="llReveal">كشف الإجابة</button>
-      </div>
     </div>
     <div style="margin-top:6px;font-weight:800" id="mQ">—</div>
     <img id="mImg" class="img" style="display:none;margin-top:8px" />
     <div class="hint" style="margin-top:8px"><b>الإجابة:</b> <span id="mA" style="display:none"></span></div>
-    <div class="row" style="justify-content:center;margin-top:8px">
-      <button class="btn" id="showA">إظهار/إخفاء الإجابة</button>
+    <div class="row" style="justify-content:center;margin-top:8px"><button class="btn" id="showA">إظهار/إخفاء الإجابة</button></div>
+
+    <div class="row" style="justify-content:space-between;margin-top:10px;flex-wrap:wrap">
+      <span class="tag">تحديد الفائز بالسؤال:</span>
+      <div class="row">
+        <button class="btn primary" id="btnCorrect">✔ إجابة صحيحة (الفريق الحالي)</button>
+        <button class="btn" id="btnWrong">✘ خطأ → فرصة للفريق الآخر (10ث)</button>
+        <button class="btn" id="btnStealWin">✔ أجاب الفريق الآخر</button>
+        <button class="btn danger" id="btnNoOne">لا أحد</button>
+      </div>
     </div>
   </div>
 </div>
