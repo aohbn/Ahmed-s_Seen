@@ -25,12 +25,27 @@
   // Modal & timer
   let timer=null, timeLeft=60, stage='regular'; // regular or steal
   let lifeline={ double:false, two:false };
+
   function updT(){ document.getElementById('timer').textContent=String(Math.floor(timeLeft/60)).padStart(2,'0')+':'+String(timeLeft%60).padStart(2,'0'); }
   function startT(){ stopT(); timer=setInterval(()=>{ if(timeLeft<=0){ stopT(); onTimeUp(); } else { timeLeft--; updT(); } },1000); }
   function stopT(){ if(timer){ clearInterval(timer); timer=null; } }
   function onTimeUp(){ if(stage==='regular') toSteal(); }
-  function toSteal(){ if(stage==='steal') return; const names=getTeamNames(); const s=getScores(); stage='steal'; s.turn=(s.turn==='A'?'B':'A'); setScores(s); renderScore(); timeLeft=10; updT(); document.getElementById('mStage').textContent=' — السرقة: '+(s.turn==='A'?names.teamA:names.teamB)+' (10ث)'; }
+  function toSteal(){ if(stage==='steal') return; const names=getTeamNames(); const s=getScores(); stage='steal'; s.turn=(s.turn==='A'?'B':'A'); setScores(s); renderScore(); timeLeft=10; updT(); document.getElementById('mStage').textContent=' — السرقة: '+(s.turn==='A'?names.teamA:names.teamB)+' (10ث)'; refreshLifelineRow(); }
   function plus20(){ timeLeft+=20; updT(); }
+  function refreshLifelineRow(){
+    const s=getScores(); const names=getTeamNames(); const cur=s.turn; const oth=(cur==='A'?'B':'A');
+    const used=s.used||{A:{},B:{}};
+    // Buttons
+    const bTwo=document.getElementById('twoTries');
+    const bDouble=document.getElementById('doublePts');
+    const bPlus=document.getElementById('plus20');
+    const bSteal=document.getElementById('stealBtn');
+    // owned by current team:
+    bTwo.disabled=!!used[cur].two; bDouble.disabled=!!used[cur].double; bPlus.disabled=!!used[cur].plus20;
+    // steal belongs to the other team (the team trying to steal the question)
+    bSteal.textContent='سرقة السؤال ('+(oth==='A'?names.teamA:names.teamB)+')';
+    bSteal.disabled=!!used[oth].steal || stage==='steal';
+  }
 
   function openModal(q,cat,level,tile){
     const names=getTeamNames(); const s=getScores();
@@ -48,9 +63,10 @@
     document.getElementById('pauseTimer').onclick=stopT;
     document.getElementById('resetTimer').onclick=()=>{ stopT(); timeLeft=(stage==='steal'?10:60); updT(); };
     document.getElementById('switchTurnTop').onclick=toSteal;
-    document.getElementById('plus20').onclick=plus20;
-    document.getElementById('doublePts').onclick=()=>{ lifeline.double = !lifeline.double; document.getElementById('doublePts').classList.toggle('primary', lifeline.double); }
-    document.getElementById('twoTries').onclick=()=>{ lifeline.two = !lifeline.two; document.getElementById('twoTries').classList.toggle('primary', lifeline.two); }
+    document.getElementById('plus20').onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].plus20) return; plus20(); s.used[cur].plus20=true; setScores(s); refreshLifelineRow(); };
+    document.getElementById('doublePts').onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].double) return; lifeline.double=true; s.used[cur].double=true; setScores(s); document.getElementById('doublePts').classList.add('primary'); refreshLifelineRow(); };
+    document.getElementById('twoTries').onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].two) return; lifeline.two=true; s.used[cur].two=true; setScores(s); document.getElementById('twoTries').classList.add('primary'); refreshLifelineRow(); };
+    document.getElementById('stealBtn').onclick=()=>{ const s=getScores(); const oth=(s.turn==='A'?'B':'A'); if(s.used[oth].steal || stage==='steal') return; s.used[oth].steal=true; s.turn=oth; setScores(s); renderScore(); stage='regular'; document.getElementById('mStage').textContent=' — الدور: '+(oth==='A'?names.teamA:names.teamB)+' (سرقة السؤال)'; refreshLifelineRow(); };
     document.getElementById('closeM').onclick=()=>{ stopT(); m.style.display='none'; };
 
     const labelCur = (s.turn==='A'?names.teamA:names.teamB);
@@ -63,6 +79,7 @@
     document.getElementById('winNone').onclick=()=>{ switchTurn(); stopT(); m.style.display='none'; };
 
     tile.classList.add('disabled'); tile.onclick=null;
+    refreshLifelineRow();
     startT();
   }
 
@@ -73,17 +90,11 @@
     document.getElementById('saveTeams').onclick=()=>{ setTeamNames({teamA:document.getElementById('teamA').value||'الفريق 1', teamB:document.getElementById('teamB').value||'الفريق 2'}); renderScore(); };
     document.getElementById('startBtn').onclick=()=>{ buildBoard(); renderBoard(); document.getElementById('setup').style.display='none'; document.getElementById('play').style.display='block'; };
     document.getElementById('swapTurn').onclick=()=>{ switchTurn(); };
-    document.getElementById('resetScore').onclick=()=>{ setScores({A:0,B:0,turn:'A'}); renderScore(); };
+    document.getElementById('resetScore').onclick=()=>{ setScores({A:0,B:0,turn:'A', used:{A:{two:false,double:false,plus20:false,steal:false}, B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
   });
 </script></head>
 <body>
-  <header class="nav">
-    <div class="container nav-inner">
-      <nav class="tabs"><a class="tab" href="/">الرئيسية</a><a class="tab" href="/packs">الحِزم</a><a class="tab" href="/questions">الأسئلة</a><a class="tab active" href="/game">البدء</a><a class="tab" href="/settings">الإعدادات</a></nav>
-      <div class="spacer"></div>
-      <div class="brand">🎮 سين جيم</div>
-    </div>
-  </header>
+<header class="nav"><div class="container nav-inner"><nav class="tabs"><a class="tab" href="/">الرئيسية</a><a class="tab" href="/packs">الحِزم</a><a class="tab" href="/questions">الأسئلة</a><a class="tab active" href="/game">البدء</a><a class="tab" href="/settings">الإعدادات</a></nav><div class="spacer"></div><div class="brand">🎮 سين جيم</div></div></header>
 <main class="container">
   <div class="card">
     <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap">
@@ -146,8 +157,9 @@
     <div class="row" style="justify-content:center;margin-top:8px"><button class="btn" id="showA" type="button">إظهار/إخفاء الإجابة</button></div>
 
     <div class="row" style="justify-content:space-between;margin-top:8px;flex-wrap:wrap">
-      <span class="tag">وسائل مساعدة:</span>
+      <span class="tag">وسائل مساعدة (مرة واحدة لكل فريق):</span>
       <div class="row">
+        <button class="btn" id="stealBtn" type="button">سرقة السؤال (الفريق الآخر)</button>
         <button class="btn" id="twoTries" type="button">إجابتان</button>
         <button class="btn" id="doublePts" type="button">×2 النقاط</button>
         <button class="btn" id="plus20" type="button">+20ث</button>

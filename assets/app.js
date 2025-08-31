@@ -9,8 +9,12 @@ export const SCORE_KEY      = "sj:scores";
 export const store = {
   get(key, fallback){ try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
   set(key, val){ localStorage.setItem(key, JSON.stringify(val)); },
-  clearAll(){ localStorage.removeItem(PACKS_KEY); localStorage.removeItem(QUESTIONS_KEY); localStorage.removeItem(SELECTED_CATS_KEY); }
+  clearAll(){ localStorage.removeItem(PACKS_KEY); localStorage.removeItem(QUESTIONS_KEY); localStorage.removeItem(SELECTED_CATS_KEY); localStorage.removeItem(SCORE_KEY); }
 };
+
+function defaultScores(){
+  return { A:0, B:0, turn:'A', used:{ A:{ two:false, double:false, plus20:false, steal:false }, B:{ two:false, double:false, plus20:false, steal:false } } };
+}
 
 (function initDefaults(){
   if(!store.get(SETTINGS_KEY,null)) store.set(SETTINGS_KEY, { roundTime:60, stealTime:10 });
@@ -18,7 +22,7 @@ export const store = {
   if(!store.get(QUESTIONS_KEY,null)) store.set(QUESTIONS_KEY, []);
   if(!store.get(SELECTED_CATS_KEY,null)) store.set(SELECTED_CATS_KEY, []);
   if(!store.get(TEAM_NAMES_KEY,null)) store.set(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' });
-  if(!store.get(SCORE_KEY,null))       store.set(SCORE_KEY, { A:0, B:0, turn:'A' });
+  if(!store.get(SCORE_KEY,null))       store.set(SCORE_KEY, defaultScores());
 })();
 
 // ---------- Packs & Questions ----------
@@ -27,7 +31,6 @@ export function listQuestions(){ return store.get(QUESTIONS_KEY,[]); }
 export function listCategories(){
   const fromPacks = Array.from(new Set(listPacks().map(p=>p.category||'غير مصنفة')));
   if(fromPacks.length) return fromPacks;
-  // Fallback infer from questions
   return Array.from(new Set(listQuestions().map(q=>q.category||'غير مصنفة')));
 }
 export function questionsByPack(packId){ return listQuestions().filter(q=>q.pack===packId); }
@@ -63,7 +66,18 @@ export function addQuestion(q){
 // ---------- Game state ----------
 export function getTeamNames(){ return store.get(TEAM_NAMES_KEY, { teamA:'الفريق 1', teamB:'الفريق 2' }); }
 export function setTeamNames(n){ store.set(TEAM_NAMES_KEY, { teamA:n.teamA||'الفريق 1', teamB:n.teamB||'الفريق 2' }); }
-export function getScores(){ return store.get(SCORE_KEY, {A:0,B:0,turn:'A'}); }
+
+export function getScores(){
+  // migrate older structure to include "used"
+  const s = store.get(SCORE_KEY, null) || defaultScores();
+  if(!s.used || !s.used.A || !s.used.B){
+    s.used = { A:{ two:false, double:false, plus20:false, steal:false }, B:{ two:false, double:false, plus20:false, steal:false } };
+    store.set(SCORE_KEY, s);
+  }
+  if(typeof s.A!=='number' || typeof s.B!=='number') { const d=defaultScores(); s.A=s.A??d.A; s.B=s.B??d.B; }
+  if(!s.turn) s.turn='A';
+  return s;
+}
 export function setScores(s){ store.set(SCORE_KEY, s); }
 export function setSelectedCategories(cats){ store.set(SELECTED_CATS_KEY, cats||[]); }
 export function getSelectedCategories(){ return store.get(SELECTED_CATS_KEY, []); }
@@ -88,11 +102,10 @@ export function importAllFromText(text, mode='merge'){
   }
   const cats = Array.from(new Set(conv.questions.map(q=>q.category))).slice(0,6);
   if(cats.length) setSelectedCategories(cats);
-  console.log('Imported packs:', conv.packs.length, 'questions:', conv.questions.length);
   return true;
 }
 
-// ---------- Normalizer (supports v6.5 + variants) ----------
+// ---------- Normalizer ----------
 function normalize(d){
   if (Array.isArray(d?.questions) && Array.isArray(d?.packs)) {
     return { packs: d.packs.map(p=>({id:p.id||slugify(p.name||'pack')+'-'+Math.random().toString(36).slice(2,6), name:p.name||'بدون اسم', category:p.category||p.cat||null})),
