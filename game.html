@@ -61,7 +61,11 @@ label.small{font-size:12px;opacity:.9;display:flex;gap:6px;align-items:center}
       <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:6px">
         <div class="row" style="gap:8px;flex-wrap:wrap">
           <span class="tag"><b id="pNameA">الفريق 1</b> • <span id="pScoreA">0</span></span>
+          <button class="btn" id="pAddA" type="button">+100</button>
+          <button class="btn" id="pSubA" type="button">-100</button>
           <span class="tag"><b id="pNameB">الفريق 2</b> • <span id="pScoreB">0</span></span>
+          <button class="btn" id="pAddB" type="button">+100</button>
+          <button class="btn" id="pSubB" type="button">-100</button>
           <span class="tag">الدور: <b id="pTurn">—</b></span>
           <button class="btn" id="swapTurnPlay" type="button">تبديل الدور</button>
         </div>
@@ -232,14 +236,26 @@ function plus20(){ timeLeft+=20; updT(); }
 function refreshLifelineRow(){ const s=getScores(); const cur=s.turn; const oth=(cur==="A"?"B":"A"); const used=s.used; document.getElementById("twoTries").disabled=!!used[cur].two; document.getElementById("doublePts").disabled=!!used[cur].double; document.getElementById("plus20").disabled=!!used[cur].plus20; document.getElementById("stealBtn").disabled=!!used[oth].steal || stage==="steal"; }
 function openModal(q,cat,level,tile){ const names=getTeamNames(); const s=getScores(); const m=document.getElementById("modal"); m.style.display="grid"; stage="regular"; lifeline={double:false,two:false}; timeLeft=60; updT(); document.getElementById("mTitle").textContent=cat+" • "+level; document.getElementById("mStage").textContent=" — الدور: "+(s.turn==="A"?names.teamA:names.teamB); document.getElementById("mQ").textContent=q.q||"—"; document.getElementById("mA").textContent=q.a||""; document.getElementById("mA").style.display="none"; const img=document.getElementById("mImg"); const imgBtn=document.getElementById("openImg"); const imgTag=document.getElementById("imgTag"); const vwrap=document.getElementById("imgViewer"); const vimg=document.getElementById("viewerImg"); if(q.img&&String(q.img).length>3){ img.src=q.img; img.style.display="block"; imgTag.style.display="inline-flex"; imgBtn.style.display="inline-block"; img.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; }; imgBtn.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; }; }else{ img.removeAttribute("src"); img.style.display="none"; imgTag.style.display="none"; imgBtn.style.display="none"; } document.getElementById("closeImg").onclick=()=>{ document.getElementById("imgViewer").style.display="none"; }; document.getElementById("showA").onclick=()=>{ const el=document.getElementById("mA"); el.style.display=(el.style.display==="none"?"block":"none"); }; document.getElementById("startTimer").onclick=startT; document.getElementById("pauseTimer").onclick=stopT; document.getElementById("resetTimer").onclick=()=>{ stopT(); timeLeft=(stage==="steal"?10:60); updT(); }; document.getElementById("switchTurnTop").onclick=toSteal; document.getElementById("plus20").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].plus20) return; plus20(); s.used[cur].plus20=true; setScores(s); refreshLifelineRow(); }; document.getElementById("doublePts").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].double) return; lifeline.double=true; s.used[cur].double=true; setScores(s); document.getElementById("doublePts").classList.add("primary"); refreshLifelineRow(); }; document.getElementById("twoTries").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].two) return; lifeline.two=true; s.used[cur].two=true; setScores(s); document.getElementById("twoTries").classList.add("primary"); refreshLifelineRow(); }; document.getElementById("stealBtn").onclick=()=>{ const s=getScores(); const oth=(s.turn==="A"?"B":"A"); if(s.used[oth].steal||stage==="steal") return; s.used[oth].steal=true; s.turn=oth; setScores(s); renderScore(); stage="regular"; document.getElementById("mStage").textContent=" — الدور: "+(oth==="A"?names.teamA:names.teamB)+" (سرقة)"; refreshLifelineRow(); }; document.getElementById("closeM").onclick=()=>{ stopT(); m.style.display="none"; }; const award=(team)=>{ const pts=lifeline.double? level*2 : level; addPoints(team,pts); switchTurn(); stopT(); m.style.display="none"; }; document.getElementById("winCur").onclick=()=>award(getScores().turn); document.getElementById("winOth").onclick=()=>award(getScores().turn==="A"?"B":"A"); document.getElementById("winNone").onclick=()=>{ switchTurn(); stopT(); m.style.display="none"; }; tile.classList.add("disabled"); tile.onclick=null; refreshLifelineRow(); startT(); }
 
+function bindPlayBarControls(){
+  const swapPlay=document.getElementById("swapTurnPlay"); if(swapPlay) swapPlay.onclick=switchTurn; bindPlayBarControls();
+  const pAddA=document.getElementById("pAddA"); if(pAddA) pAddA.onclick=()=>addPoints("A",100);
+  const pSubA=document.getElementById("pSubA"); if(pSubA) pSubA.onclick=()=>addPoints("A",-100);
+  const pAddB=document.getElementById("pAddB"); if(pAddB) pAddB.onclick=()=>addPoints("B",100);
+  const pSubB=document.getElementById("pSubB"); if(pSubB) pSubB.onclick=()=>addPoints("B",-100);
+}
+
 window.addEventListener("DOMContentLoaded",()=>{
   renderScore();
   bindTeamInputs();
   renderSetup();
-  document.getElementById("startBtn").onclick=(e)=>{ try{ e?.preventDefault(); buildBoard(); renderBoard(); document.getElementById("setup").style.display="none"; document.getElementById("play").style.display="block"; renderScore(); }catch(err){ console.error("Start error",err); alert("حدث خطأ أثناء بدء اللعبة. تأكد من وجود أسئلة للفئات المختارة."); } };
+  document.getElementById("startBtn").onclick=(e)=>{ try{ e?.preventDefault(); buildBoard(); renderBoard(); document.getElementById("setup").style.display="none"; document.getElementById("play").style.display="block"; bindPlayBarControls(); renderScore(); }catch(err){ console.error("Start error",err); alert("حدث خطأ أثناء بدء اللعبة. تأكد من وجود أسئلة للفئات المختارة."); } };
   const swapBtn=document.getElementById("swapTurn2")||document.getElementById("swapTurn");
   if(swapBtn) swapBtn.onclick=switchTurn;
-  const swapPlay=document.getElementById("swapTurnPlay"); if(swapPlay) swapPlay.onclick=switchTurn;
+  const swapPlay=document.getElementById("swapTurnPlay"); if(swapPlay) swapPlay.onclick=switchTurn; bindPlayBarControls();
+  const pAddA=document.getElementById("pAddA"); if(pAddA) pAddA.onclick=()=>addPoints("A",100);
+  const pSubA=document.getElementById("pSubA"); if(pSubA) pSubA.onclick=()=>addPoints("A",-100);
+  const pAddB=document.getElementById("pAddB"); if(pAddB) pAddB.onclick=()=>addPoints("B",100);
+  const pSubB=document.getElementById("pSubB"); if(pSubB) pSubB.onclick=()=>addPoints("B",-100);
   const resetBtn=document.getElementById("resetScore");
   if(resetBtn) resetBtn.onclick=()=>{ setScores({A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
 });
