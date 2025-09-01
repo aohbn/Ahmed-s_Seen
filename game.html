@@ -58,6 +58,14 @@ label.small{font-size:12px;opacity:.9;display:flex;gap:6px;align-items:center}
 
   <div id="play" style="display:none">
     <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <span class="tag"><b id="pNameA">الفريق 1</b> • <span id="pScoreA">0</span></span>
+          <span class="tag"><b id="pNameB">الفريق 2</b> • <span id="pScoreB">0</span></span>
+          <span class="tag">الدور: <b id="pTurn">—</b></span>
+          <button class="btn" id="swapTurnPlay" type="button">تبديل الدور</button>
+        </div>
+      </div>
       <h2>لوحة الأسئلة</h2>
       <div id="board"></div>
     </div>
@@ -162,6 +170,11 @@ function renderScore(){
   if(scoreB) scoreB.textContent=s.B;
   const turn=document.getElementById("turn");
   if(turn) turn.textContent=(s.turn==="A"?n.teamA:n.teamB);
+  const pnA=document.getElementById("pNameA"); if(pnA) pnA.textContent=n.teamA;
+  const pnB=document.getElementById("pNameB"); if(pnB) pnB.textContent=n.teamB;
+  const psA=document.getElementById("pScoreA"); if(psA) psA.textContent=s.A;
+  const psB=document.getElementById("pScoreB"); if(psB) psB.textContent=s.B;
+  const pT=document.getElementById("pTurn"); if(pT) pT.textContent=(s.turn==="A"?n.teamA:n.teamB);
 }
 function addPoints(team,pts){ const s=getScores(); s[team]+=pts; if(s[team]<0)s[team]=0; setScores(s); renderScore(); }
 function switchTurn(){ const s=getScores(); s.turn=(s.turn==="A"?"B":"A"); setScores(s); renderScore(); }
@@ -193,9 +206,9 @@ function renderSetup(){
     const drop=document.createElement("div"); drop.className="drop";
     const label=document.createElement("div"); label.textContent="اختر الحزمة لهذه الفئة:";
     const select=document.createElement("select"); select.className="input";
-    const packs=packsByCategory(cat); const optAny=document.createElement("option"); optAny.value=""; optAny.textContent="من كل الحزم (عدد: "+total+")"; select.appendChild(optAny);
-    packs.forEach(p=>{ const m=qs.filter(q=>q.category===cat && q.pack===p.id).length; const o=document.createElement("option"); o.value=p.id; o.textContent="حزمة: "+p.name+" (عدد: "+m+")"; select.appendChild(o); });
-    select.value=(selectedPacks||{})[cat]||""; select.onchange=()=>{ selectedPacks[cat]=select.value||""; setSelectedPacks(selectedPacks); tag.textContent = select.options[select.selectedIndex].text || "من كل الحزم"; };
+    const packs=packsByCategory(cat); const optAny=document.createElement("option"); optAny.value=""; optAny.textContent="من كل الحزم"; select.appendChild(optAny);
+    packs.forEach(p=>{ const o=document.createElement("option"); o.value=p.id; o.textContent="حزمة: "+p.name; select.appendChild(o); });
+    select.value=(selectedPacks||{})[cat]||""; select.onchange=()=>{ selectedPacks[cat]=select.value||""; setSelectedPacks(selectedPacks); const selObj=packs.find(pp=>pp.id===select.value); tag.textContent = selObj? ("الحزمة: "+selObj.name) : "من كل الحزم"; };
     drop.appendChild(label); drop.appendChild(select); card.appendChild(drop);
     card.onclick=(e)=>{ if(e.target===select) return; if(selectedCats.includes(cat)){ selectedCats=selectedCats.filter(x=>x!==cat); card.classList.remove("active"); } else if(selectedCats.length<6){ selectedCats.push(cat); card.classList.add("active"); } setSelectedCategories(selectedCats); document.getElementById("selCount").textContent=(selectedCats?.length||0)+"/6"; document.getElementById("startBtn").disabled=(selectedCats.length!==6); };
     grid.appendChild(card);
@@ -223,9 +236,10 @@ window.addEventListener("DOMContentLoaded",()=>{
   renderScore();
   bindTeamInputs();
   renderSetup();
-  document.getElementById("startBtn").onclick=(e)=>{ try{ e?.preventDefault(); buildBoard(); renderBoard(); document.getElementById("setup").style.display="none"; document.getElementById("play").style.display="block"; }catch(err){ console.error("Start error",err); alert("حدث خطأ أثناء بدء اللعبة. تأكد من وجود أسئلة للفئات المختارة."); } };
+  document.getElementById("startBtn").onclick=(e)=>{ try{ e?.preventDefault(); buildBoard(); renderBoard(); document.getElementById("setup").style.display="none"; document.getElementById("play").style.display="block"; renderScore(); }catch(err){ console.error("Start error",err); alert("حدث خطأ أثناء بدء اللعبة. تأكد من وجود أسئلة للفئات المختارة."); } };
   const swapBtn=document.getElementById("swapTurn2")||document.getElementById("swapTurn");
   if(swapBtn) swapBtn.onclick=switchTurn;
+  const swapPlay=document.getElementById("swapTurnPlay"); if(swapPlay) swapPlay.onclick=switchTurn;
   const resetBtn=document.getElementById("resetScore");
   if(resetBtn) resetBtn.onclick=()=>{ setScores({A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
 });
