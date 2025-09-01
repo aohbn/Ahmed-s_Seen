@@ -35,8 +35,8 @@ label.small{font-size:12px;opacity:.9;display:flex;gap:6px;align-items:center}
     <!-- Teams bar (names + scores + whose turn) -->
     <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:10px">
       <div class="row" style="gap:8px;flex-wrap:wrap">
-        <label class="small">اسم الفريق 1 <input id="teamAInput" class="input" style="width:150px"></label>
-        <label class="small">اسم الفريق 2 <input id="teamBInput" class="input" style="width:150px"></label>
+        <label class="small">اسم الفريق 1 <input id="teamAInput" class="input" style="width:150px" placeholder="الفريق 1"></label>
+        <label class="small">اسم الفريق 2 <input id="teamBInput" class="input" style="width:150px" placeholder="الفريق 2"></label>
         <button class="btn" id="swapTurn2" type="button">تبديل الدور</button>
       </div>
       <div class="row" style="gap:8px;flex-wrap:wrap">
@@ -47,7 +47,7 @@ label.small{font-size:12px;opacity:.9;display:flex;gap:6px;align-items:center}
     </div>
 
     <div id="catsGrid" class="catsGrid"></div>
-    <div class="row" style="justify-content:space-between;margin-top:12px">
+    <div class="row" style="justify-content:space-between;margin-top:12px;flex-wrap:wrap">
       <span class="tag" id="selCount">0/6</span>
       <div class="row" style="gap:8px;flex-wrap:wrap">
         <button class="btn primary" id="startBtn" type="button" disabled>بدء اللعبة</button>
@@ -134,7 +134,7 @@ label.small{font-size:12px;opacity:.9;display:flex;gap:6px;align-items:center}
 
 <script type="module">
 // ---- storage & schema (no external files) -----
-const K={ SETTINGS:"sj:settings", PACKS:"sj:packs", QUESTIONS:"sj:questions", SELECTED_CATS:"sj:selectedCats", SELECTED_PACKS:"sj:selectedPacks", TEAMS:"sj:teamNames", SCORE:"sj:scores" };
+const K={ SETTINGS:"sj:settings", PACKS:"sj:packs", QUESTIONS:"sj:questions", SELECTED_CATS:"sj:selectedCats", SELECTED_PACKS:"sj:selectedPacks", TEAMS:"sj:teamNames", SCORE:"sj:scores", PACK_CYCLE:"sj:packCycleIdx" };
 const store={ get:(k,f)=>{ try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}}, set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)) };
 function defaults(){
   if(!store.get(K.SETTINGS,null)) store.set(K.SETTINGS,{roundTime:60, stealTime:10});
@@ -144,6 +144,7 @@ function defaults(){
   if(!store.get(K.SELECTED_PACKS,null)) store.set(K.SELECTED_PACKS,{});
   if(!store.get(K.TEAMS,null)) store.set(K.TEAMS,{teamA:"الفريق 1", teamB:"الفريق 2"});
   if(!store.get(K.SCORE,null)) store.set(K.SCORE,{A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}});
+  if(!store.get(K.PACK_CYCLE,null)) store.set(K.PACK_CYCLE,{});
 }
 defaults();
 const listPacks=()=>store.get(K.PACKS,[]);
@@ -164,16 +165,13 @@ let selectedCats=[]; let selectedPacks=getSelectedPacks(); let boardQuestions={}
 
 function renderScore(){
   const n=getTeamNames(); const s=getScores();
-  const nameA=document.getElementById("nameA");
-  const nameB=document.getElementById("nameB");
-  if(nameA) nameA.textContent=n.teamA;
-  if(nameB) nameB.textContent=n.teamB;
-  const scoreA=document.getElementById("scoreA");
-  const scoreB=document.getElementById("scoreB");
-  if(scoreA) scoreA.textContent=s.A;
-  if(scoreB) scoreB.textContent=s.B;
-  const turn=document.getElementById("turn");
-  if(turn) turn.textContent=(s.turn==="A"?n.teamA:n.teamB);
+  // setup bar
+  const nameA=document.getElementById("nameA"); if(nameA) nameA.textContent=n.teamA;
+  const nameB=document.getElementById("nameB"); if(nameB) nameB.textContent=n.teamB;
+  const scoreA=document.getElementById("scoreA"); if(scoreA) scoreA.textContent=s.A;
+  const scoreB=document.getElementById("scoreB"); if(scoreB) scoreB.textContent=s.B;
+  const turn=document.getElementById("turn"); if(turn) turn.textContent=(s.turn==="A"?n.teamA:n.teamB);
+  // play bar
   const pnA=document.getElementById("pNameA"); if(pnA) pnA.textContent=n.teamA;
   const pnB=document.getElementById("pNameB"); if(pnB) pnB.textContent=n.teamB;
   const psA=document.getElementById("pScoreA"); if(psA) psA.textContent=s.A;
@@ -191,30 +189,67 @@ function bindTeamInputs(){
   if(b) b.value=n.teamB;
   if(a) a.addEventListener("input",()=>{ const cur=getTeamNames(); setTeamNames({teamA:a.value||"الفريق 1", teamB:cur.teamB}); renderScore(); });
   if(b) b.addEventListener("input",()=>{ const cur=getTeamNames(); setTeamNames({teamA:cur.teamA, teamB:b.value||"الفريق 2"}); renderScore(); });
-  const swap=document.getElementById("swapTurn2")||document.getElementById("swapTurn");
-  if(swap) swap.onclick=switchTurn;
+  const swap=document.getElementById("swapTurn2"); if(swap) swap.onclick=switchTurn;
+}
+function bindPlayBarControls(){
+  const swapPlay=document.getElementById("swapTurnPlay"); if(swapPlay) swapPlay.onclick=switchTurn;
+  const pAddA=document.getElementById("pAddA"); if(pAddA) pAddA.onclick=()=>addPoints("A",100);
+  const pSubA=document.getElementById("pSubA"); if(pSubA) pSubA.onclick=()=>addPoints("A",-100);
+  const pAddB=document.getElementById("pAddB"); if(pAddB) pAddB.onclick=()=>addPoints("B",100);
+  const pSubB=document.getElementById("pSubB"); if(pSubB) pSubB.onclick=()=>addPoints("B",-100);
 }
 
 function renderSetup(){
   const all=listCategories(); const grid=document.getElementById("catsGrid"); grid.innerHTML="";
   const saved=getSelectedCategories().filter(c=>all.includes(c)); selectedCats=saved.length?saved.slice(0,6):all.slice(0,6);
   const qs=listQuestions();
+  const packCycle=store.get(K.PACK_CYCLE,{});
   all.forEach(cat=>{
     const card=document.createElement("div"); card.className="catCard"+(selectedCats.includes(cat)?" active":"");
     const title=document.createElement("h3"); title.textContent=cat; card.appendChild(title);
-    const total=qs.filter(q=>q.category===cat).length; const meta=document.createElement("div"); meta.className="row";
-    // Show current pack instead of "number of questions"
-    const packMap=getSelectedPacks(); const packId=packMap[cat]||""; let packLabel="من كل الحزم"; 
-    if(packId){ const pack=listPacks().find(p=>p.id===packId); if(pack) packLabel="الحزمة: "+pack.name; }
-    const tag=document.createElement("span"); tag.className="tag"; tag.textContent=packLabel; meta.appendChild(tag); card.appendChild(meta);
+
+    const packs=packsByCategory(cat);
+    const meta=document.createElement("div"); meta.className="row";
+    const tag=document.createElement("span"); tag.className="tag";
+    const savedPick=(getSelectedPacks()||{})[cat]||"";
+    const packObj=packs.find(p=>p.id===savedPick);
+    tag.textContent = packObj? ("الحزمة: "+packObj.name) : "من كل الحزم";
+    meta.appendChild(tag); card.appendChild(meta);
+
     const drop=document.createElement("div"); drop.className="drop";
     const label=document.createElement("div"); label.textContent="اختر الحزمة لهذه الفئة:";
     const select=document.createElement("select"); select.className="input";
-    const packs=packsByCategory(cat); const optAny=document.createElement("option"); optAny.value=""; optAny.textContent="من كل الحزم"; select.appendChild(optAny);
+    const optAny=document.createElement("option"); optAny.value=""; optAny.textContent="من كل الحزم"; select.appendChild(optAny);
     packs.forEach(p=>{ const o=document.createElement("option"); o.value=p.id; o.textContent="حزمة: "+p.name; select.appendChild(o); });
-    select.value=(selectedPacks||{})[cat]||""; select.onchange=()=>{ selectedPacks[cat]=select.value||""; setSelectedPacks(selectedPacks); const selObj=packs.find(pp=>pp.id===select.value); tag.textContent = selObj? ("الحزمة: "+selObj.name) : "من كل الحزم"; };
+
+    // Default: saved pick else next pack after last used
+    if(savedPick && [...select.options].some(o=>o.value===savedPick)){
+      select.value=savedPick;
+    }else if(packs.length){
+      const lastIdx = Number(packCycle[cat] ?? -1);
+      const nextIdx = ((lastIdx + 1) % Math.max(1, packs.length)) | 0;
+      select.value = packs[nextIdx]?.id || "";
+    }else{
+      select.value="";
+    }
+    selectedPacks[cat]=select.value||""; setSelectedPacks(selectedPacks);
+    tag.textContent = select.value? ("الحزمة: "+(packs.find(pp=>pp.id===select.value)?.name||"")) : "من كل الحزم";
+
+    select.onchange=()=>{
+      selectedPacks[cat]=select.value||""; setSelectedPacks(selectedPacks);
+      const obj=packs.find(pp=>pp.id===select.value);
+      tag.textContent = obj? ("الحزمة: "+obj.name) : "من كل الحزم";
+    };
+
     drop.appendChild(label); drop.appendChild(select); card.appendChild(drop);
-    card.onclick=(e)=>{ if(e.target===select) return; if(selectedCats.includes(cat)){ selectedCats=selectedCats.filter(x=>x!==cat); card.classList.remove("active"); } else if(selectedCats.length<6){ selectedCats.push(cat); card.classList.add("active"); } setSelectedCategories(selectedCats); document.getElementById("selCount").textContent=(selectedCats?.length||0)+"/6"; document.getElementById("startBtn").disabled=(selectedCats.length!==6); };
+
+    card.onclick=(e)=>{ if(e.target===select) return;
+      if(selectedCats.includes(cat)){ selectedCats=selectedCats.filter(x=>x!==cat); card.classList.remove("active"); }
+      else if(selectedCats.length<6){ selectedCats.push(cat); card.classList.add("active"); }
+      setSelectedCategories(selectedCats);
+      document.getElementById("selCount").textContent=(selectedCats?.length||0)+"/6";
+      document.getElementById("startBtn").disabled=(selectedCats.length!==6);
+    };
     grid.appendChild(card);
   });
   document.getElementById("selCount").textContent=(selectedCats?.length||0)+"/6";
@@ -222,8 +257,41 @@ function renderSetup(){
   document.getElementById("noData").style.display=all.length?"none":"block";
 }
 
-function buildBoard(){ const qs=listQuestions(); boardQuestions={}; selectedCats.forEach(cat=> boardQuestions[cat]={100:[],200:[],300:[],400:[]}); [100,200,300,400].forEach(level=>{ selectedCats.forEach(cat=>{ const chosen=(selectedPacks||{})[cat]||""; const bucket=qs.filter(q=> q.category===cat && Number(q.level)===level && (!chosen || q.pack===chosen)); boardQuestions[cat][level]=bucket.slice(); }); }); }
-function renderBoard(){ const board=document.getElementById("board"); board.innerHTML=""; const head=document.createElement("div"); head.style.display="grid"; head.style.gridTemplateColumns="repeat(6,1fr)"; head.style.gap="12px"; selectedCats.forEach(cat=>{ const h=document.createElement("div"); h.className="tile"; h.style.minHeight="60px"; h.textContent=cat; head.appendChild(h); }); board.appendChild(head); const levels=[100,100,200,200,300,300,400]; levels.forEach(level=>{ const row=document.createElement("div"); row.className="board"; selectedCats.forEach(cat=>{ const pool=boardQuestions[cat][level]||[]; let q=null; if(pool.length){ q=pool.splice(Math.floor(Math.random()*pool.length),1)[0]; } const t=document.createElement("div"); t.className="tile"; t.textContent=level; if(!q) t.classList.add("disabled"); else t.onclick=()=>openModal(q,cat,level,t); row.appendChild(t); }); board.appendChild(row); }); }
+function buildBoard(){
+  const qs=listQuestions(); boardQuestions={};
+  selectedCats.forEach(cat=> boardQuestions[cat]={100:[],200:[],300:[],400:[]});
+  const levels=[100,200,300,400];
+  levels.forEach(level=>{
+    selectedCats.forEach(cat=>{
+      const chosen=(getSelectedPacks()||{})[cat]||"";
+      const bucket=qs.filter(q=> q.category===cat && Number(q.level)===level && (!chosen || q.pack===chosen));
+      boardQuestions[cat][level]=bucket.slice(); // keep pool
+    });
+  });
+}
+
+function renderBoard(){
+  const board=document.getElementById("board"); board.innerHTML="";
+  // header row
+  const head=document.createElement("div");
+  head.style.display="grid"; head.style.gridTemplateColumns="repeat(6,1fr)"; head.style.gap="12px";
+  selectedCats.forEach(cat=>{ const h=document.createElement("div"); h.className="tile"; h.style.minHeight="60px"; h.textContent=cat; head.appendChild(h); });
+  board.appendChild(head);
+
+  const levels=[100,100,200,200,300,300,400];
+  levels.forEach(level=>{
+    const row=document.createElement("div"); row.className="board";
+    selectedCats.forEach(cat=>{
+      const pool=boardQuestions[cat][level]||[];
+      let q=null; if(pool.length){ q=pool.splice(Math.floor(Math.random()*pool.length),1)[0]; }
+      const t=document.createElement("div"); t.className="tile"; t.textContent=level;
+      if(!q) t.classList.add("disabled");
+      else t.onclick=()=>openModal(q,cat,level,t);
+      row.appendChild(t);
+    });
+    board.appendChild(row);
+  });
+}
 
 // Modal + lifelines
 let timer=null, timeLeft=60, stage="regular"; let lifeline={double:false,two:false};
@@ -234,30 +302,117 @@ function onTimeUp(){ if(stage==="regular") toSteal(); }
 function toSteal(){ if(stage==="steal") return; const names=getTeamNames(); const s=getScores(); stage="steal"; s.turn=(s.turn==="A"?"B":"A"); setScores(s); renderScore(); timeLeft=10; updT(); document.getElementById("mStage").textContent=" — السرقة"; refreshLifelineRow(); }
 function plus20(){ timeLeft+=20; updT(); }
 function refreshLifelineRow(){ const s=getScores(); const cur=s.turn; const oth=(cur==="A"?"B":"A"); const used=s.used; document.getElementById("twoTries").disabled=!!used[cur].two; document.getElementById("doublePts").disabled=!!used[cur].double; document.getElementById("plus20").disabled=!!used[cur].plus20; document.getElementById("stealBtn").disabled=!!used[oth].steal || stage==="steal"; }
-function openModal(q,cat,level,tile){ const names=getTeamNames(); const s=getScores(); const m=document.getElementById("modal"); m.style.display="grid"; stage="regular"; lifeline={double:false,two:false}; timeLeft=60; updT(); document.getElementById("mTitle").textContent=cat+" • "+level; document.getElementById("mStage").textContent=" — الدور: "+(s.turn==="A"?names.teamA:names.teamB); document.getElementById("mQ").textContent=q.q||"—"; document.getElementById("mA").textContent=q.a||""; document.getElementById("mA").style.display="none"; const img=document.getElementById("mImg"); const imgBtn=document.getElementById("openImg"); const imgTag=document.getElementById("imgTag"); const vwrap=document.getElementById("imgViewer"); const vimg=document.getElementById("viewerImg"); if(q.img&&String(q.img).length>3){ img.src=q.img; img.style.display="block"; imgTag.style.display="inline-flex"; imgBtn.style.display="inline-block"; img.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; }; imgBtn.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; }; }else{ img.removeAttribute("src"); img.style.display="none"; imgTag.style.display="none"; imgBtn.style.display="none"; } document.getElementById("closeImg").onclick=()=>{ document.getElementById("imgViewer").style.display="none"; }; document.getElementById("showA").onclick=()=>{ const el=document.getElementById("mA"); el.style.display=(el.style.display==="none"?"block":"none"); }; document.getElementById("startTimer").onclick=startT; document.getElementById("pauseTimer").onclick=stopT; document.getElementById("resetTimer").onclick=()=>{ stopT(); timeLeft=(stage==="steal"?10:60); updT(); }; document.getElementById("switchTurnTop").onclick=toSteal; document.getElementById("plus20").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].plus20) return; plus20(); s.used[cur].plus20=true; setScores(s); refreshLifelineRow(); }; document.getElementById("doublePts").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].double) return; lifeline.double=true; s.used[cur].double=true; setScores(s); document.getElementById("doublePts").classList.add("primary"); refreshLifelineRow(); }; document.getElementById("twoTries").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].two) return; lifeline.two=true; s.used[cur].two=true; setScores(s); document.getElementById("twoTries").classList.add("primary"); refreshLifelineRow(); }; document.getElementById("stealBtn").onclick=()=>{ const s=getScores(); const oth=(s.turn==="A"?"B":"A"); if(s.used[oth].steal||stage==="steal") return; s.used[oth].steal=true; s.turn=oth; setScores(s); renderScore(); stage="regular"; document.getElementById("mStage").textContent=" — الدور: "+(oth==="A"?names.teamA:names.teamB)+" (سرقة)"; refreshLifelineRow(); }; document.getElementById("closeM").onclick=()=>{ stopT(); m.style.display="none"; }; const award=(team)=>{ const pts=lifeline.double? level*2 : level; addPoints(team,pts); switchTurn(); stopT(); m.style.display="none"; }; document.getElementById("winCur").onclick=()=>award(getScores().turn); document.getElementById("winOth").onclick=()=>award(getScores().turn==="A"?"B":"A"); document.getElementById("winNone").onclick=()=>{ switchTurn(); stopT(); m.style.display="none"; }; tile.classList.add("disabled"); tile.onclick=null; refreshLifelineRow(); startT(); }
+function openModal(q,cat,level,tile){
+  const names=getTeamNames(); const s=getScores();
+  const m=document.getElementById("modal"); m.style.display="grid";
+  stage="regular"; lifeline={double:false,two:false}; timeLeft=60; updT();
 
-function bindPlayBarControls(){
-  const swapPlay=document.getElementById("swapTurnPlay"); if(swapPlay) swapPlay.onclick=switchTurn; bindPlayBarControls();
-  const pAddA=document.getElementById("pAddA"); if(pAddA) pAddA.onclick=()=>addPoints("A",100);
-  const pSubA=document.getElementById("pSubA"); if(pSubA) pSubA.onclick=()=>addPoints("A",-100);
-  const pAddB=document.getElementById("pAddB"); if(pAddB) pAddB.onclick=()=>addPoints("B",100);
-  const pSubB=document.getElementById("pSubB"); if(pSubB) pSubB.onclick=()=>addPoints("B",-100);
+  document.getElementById("mTitle").textContent=cat+" • "+level;
+  document.getElementById("mStage").textContent=" — الدور: "+(s.turn==="A"?names.teamA:names.teamB);
+  document.getElementById("mQ").textContent=q.q||"—";
+  document.getElementById("mA").textContent=q.a||"";
+  document.getElementById("mA").style.display="none";
+
+  const img=document.getElementById("mImg");
+  const imgBtn=document.getElementById("openImg");
+  const imgTag=document.getElementById("imgTag");
+  const vwrap=document.getElementById("imgViewer");
+  const vimg=document.getElementById("viewerImg");
+  if(q.img&&String(q.img).length>3){
+    img.src=q.img; img.style.display="block"; imgTag.style.display="inline-flex"; imgBtn.style.display="inline-block";
+    img.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; };
+    imgBtn.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; };
+  }else{
+    img.removeAttribute("src"); img.style.display="none"; imgTag.style.display="none"; imgBtn.style.display="none";
+  }
+  document.getElementById("closeImg").onclick=()=>{ document.getElementById("imgViewer").style.display="none"; };
+
+  document.getElementById("showA").onclick=()=>{ const el=document.getElementById("mA"); el.style.display=(el.style.display==="none"?"block":"none"); };
+  document.getElementById("startTimer").onclick=startT;
+  document.getElementById("pauseTimer").onclick=stopT;
+  document.getElementById("resetTimer").onclick=()=>{ stopT(); timeLeft=(stage==="steal"?10:60); updT(); };
+  document.getElementById("switchTurnTop").onclick=toSteal;
+
+  document.getElementById("plus20").onclick=()=>{
+    const s=getScores(); const cur=s.turn; if(s.used[cur].plus20) return;
+    plus20(); s.used[cur].plus20=true; setScores(s); refreshLifelineRow();
+  };
+  document.getElementById("doublePts").onclick=()=>{
+    const s=getScores(); const cur=s.turn; if(s.used[cur].double) return;
+    lifeline.double=true; s.used[cur].double=true; setScores(s);
+    document.getElementById("doublePts").classList.add("primary");
+    refreshLifelineRow();
+  };
+  document.getElementById("twoTries").onclick=()=>{
+    const s=getScores(); const cur=s.turn; if(s.used[cur].two) return;
+    lifeline.two=true; s.used[cur].two=true; setScores(s);
+    document.getElementById("twoTries").classList.add("primary");
+    refreshLifelineRow();
+  };
+  document.getElementById("stealBtn").onclick=()=>{
+    const s=getScores(); const oth=(s.turn==="A"?"B":"A");
+    if(s.used[oth].steal||stage==="steal") return;
+    s.used[oth].steal=true; s.turn=oth; setScores(s); renderScore();
+    stage="regular"; document.getElementById("mStage").textContent=" — الدور: "+(oth==="A"?names.teamA:names.teamB)+" (سرقة)";
+    refreshLifelineRow();
+  };
+
+  document.getElementById("closeM").onclick=()=>{ stopT(); m.style.display="none"; };
+
+  const award=(team)=>{
+    const pts=lifeline.double? level*2 : level;
+    addPoints(team,pts); switchTurn(); stopT(); m.style.display="none";
+  };
+  document.getElementById("winCur").onclick=()=>award(getScores().turn);
+  document.getElementById("winOth").onclick=()=>award(getScores().turn==="A"?"B":"A");
+  document.getElementById("winNone").onclick=()=>{ switchTurn(); stopT(); m.style.display="none"; };
+
+  tile.classList.add("disabled"); tile.onclick=null;
+  refreshLifelineRow();
+  startT();
 }
 
-window.addEventListener("DOMContentLoaded",()=>{
+document.addEventListener("DOMContentLoaded",()=>{
   renderScore();
   bindTeamInputs();
   renderSetup();
-  document.getElementById("startBtn").onclick=(e)=>{ try{ e?.preventDefault(); buildBoard(); renderBoard(); document.getElementById("setup").style.display="none"; document.getElementById("play").style.display="block"; bindPlayBarControls(); renderScore(); }catch(err){ console.error("Start error",err); alert("حدث خطأ أثناء بدء اللعبة. تأكد من وجود أسئلة للفئات المختارة."); } };
-  const swapBtn=document.getElementById("swapTurn2")||document.getElementById("swapTurn");
-  if(swapBtn) swapBtn.onclick=switchTurn;
-  const swapPlay=document.getElementById("swapTurnPlay"); if(swapPlay) swapPlay.onclick=switchTurn; bindPlayBarControls();
-  const pAddA=document.getElementById("pAddA"); if(pAddA) pAddA.onclick=()=>addPoints("A",100);
-  const pSubA=document.getElementById("pSubA"); if(pSubA) pSubA.onclick=()=>addPoints("A",-100);
-  const pAddB=document.getElementById("pAddB"); if(pAddB) pAddB.onclick=()=>addPoints("B",100);
-  const pSubB=document.getElementById("pSubB"); if(pSubB) pSubB.onclick=()=>addPoints("B",-100);
-  const resetBtn=document.getElementById("resetScore");
-  if(resetBtn) resetBtn.onclick=()=>{ setScores({A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
+
+  document.getElementById("startBtn").onclick=()=>{
+    // Save team names
+    const ia=document.getElementById("teamAInput"); const ib=document.getElementById("teamBInput");
+    if(ia&&ib){ setTeamNames({teamA: ia.value||"الفريق 1", teamB: ib.value||"الفريق 2"}); }
+
+    // Persist pack selections from dropdowns
+    selectedPacks=getSelectedPacks();
+    document.querySelectorAll(".catCard .drop select").forEach(sel=>{
+      const card=sel.closest(".catCard"); const cat=card?.querySelector("h3")?.textContent?.trim()||"";
+      if(cat) selectedPacks[cat]=sel.value||"";
+    });
+    setSelectedPacks(selectedPacks);
+
+    // Auto-advance pack cycle for next game
+    const packCycle=store.get(K.PACK_CYCLE,{});
+    selectedCats.forEach(cat=>{
+      const packs=packsByCategory(cat);
+      const pickedId=(getSelectedPacks()||{})[cat]||"";
+      if(pickedId && packs.length){
+        const idx=Math.max(0,packs.findIndex(p=>p.id===pickedId));
+        packCycle[cat]=idx; // save last used; renderSetup adds +1 next time
+      }else if(packs.length){
+        const lastIdx=Number(packCycle[cat] ?? -1);
+        packCycle[cat]=(lastIdx+1)%packs.length;
+      }
+    });
+    store.set(K.PACK_CYCLE,packCycle);
+
+    // Build board
+    buildBoard();
+    document.getElementById("setup").style.display="none";
+    document.getElementById("play").style.display="block";
+    bindPlayBarControls();
+    renderScore();
+    renderBoard();
+  };
 });
 </script>
 </body></html>
