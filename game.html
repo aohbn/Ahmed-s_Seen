@@ -1,201 +1,31 @@
 <!doctype html><html lang="ar" dir="rtl"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>سين جيم • البدء</title><link rel="stylesheet" href="assets/style.css">
-<script type="module">
-import { listQuestions, listCategories, packsByCategory, getSelectedCategories, setSelectedCategories, getSelectedPacks, setSelectedPacks, getTeamNames, setTeamNames, getScores, setScores } from "./assets/app.js";
-
-let selectedCats = []; 
-let selectedPacks = getSelectedPacks();
-let boardQuestions = {};
-
-function renderScore(){
-  const names=getTeamNames(); const s=getScores();
-  document.getElementById('nameA').textContent=names.teamA;
-  document.getElementById('nameB').textContent=names.teamB;
-  document.getElementById('scoreA').textContent=s.A;
-  document.getElementById('scoreB').textContent=s.B;
-  document.getElementById('turn').textContent=(s.turn==='A'?names.teamA:names.teamB);
-  try{ _bindScoreAdjust(); }catch{}
-}
-function addPoints(team, pts){ const s=getScores(); s[team]+=pts; setScores(s); renderScore(); }
-function switchTurn(){ const s=getScores(); s.turn=(s.turn==='A'?'B':'A'); setScores(s); renderScore(); }
-
-function allCategories(){ return listCategories(); }
-
-  wrap.style.display='block';
-  const qs = listQuestions();
-  selectedCats.forEach(cat=>{
-    const row=document.createElement('div'); row.className='row'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.margin='6px 0';
-    const label=document.createElement('div'); label.textContent='الحزمة للفئة: '+cat;
-    const select=document.createElement('select'); select.className='input'; select.style.maxWidth='420px';
-    const packs = packsByCategory(cat);
-    const allCount = qs.filter(q=> q.category===cat).length;
-    const optAny = document.createElement('option'); optAny.value=''; optAny.textContent='من كل الحزم (عدد الأسئلة: '+allCount+')'; select.appendChild(optAny);
-    packs.forEach(p=>{ 
-      const m = qs.filter(q=> q.category===cat && q.pack===p.id).length;
-      const o=document.createElement('option'); o.value=p.id; o.textContent='حزمة: '+p.name+' (عدد: '+m+')'; 
-      select.appendChild(o); 
-    });
-    select.value = selectedPacks[cat]||'';
-    select.onchange=()=>{ selectedPacks[cat]=select.value||''; setSelectedPacks(selectedPacks); renderChosenBadges(); };
-    row.appendChild(label); row.appendChild(select); wrap.appendChild(row);
-  });
-  renderChosenBadges();
-}
-    d.textContent = cat + ' • ' + label;
-    badge.appendChild(d);
-  });
-}
-
-
-function renderSetup(){
-  const all=listCategories(); const grid=document.getElementById('catsGrid'); grid.innerHTML='';
-  const saved=getSelectedCategories().filter(c=>all.includes(c));
-  selectedCats=saved.length?saved.slice(0,6):all.slice(0,6);
-  const qs=listQuestions();
-  all.forEach(cat=>{
-    const card=document.createElement('div'); card.className='catCard'+(selectedCats.includes(cat)?' active':'');
-    const title=document.createElement('h3'); title.textContent=cat; card.appendChild(title);
-    const meta=document.createElement('div'); meta.className='row'; 
-    const total=qs.filter(q=>q.category===cat).length;
-    const tag=document.createElement('span'); tag.className='tag'; tag.textContent='عدد الأسئلة: '+total; meta.appendChild(tag); card.appendChild(meta);
-
-    const drop=document.createElement('div'); drop.className='drop';
-    const label=document.createElement('div'); label.textContent='اختر الحزمة لهذه الفئة:';
-    const select=document.createElement('select'); select.className='input';
-    const packs=packsByCategory(cat);
-    const optAny=document.createElement('option'); optAny.value=''; optAny.textContent='من كل الحزم (عدد: '+total+')'; select.appendChild(optAny);
-    packs.forEach(p=>{ const m=qs.filter(q=>q.category===cat && q.pack===p.id).length; const o=document.createElement('option'); o.value=p.id; o.textContent='حزمة: '+p.name+' (عدد: '+m+')'; select.appendChild(o); });
-    select.value=(selectedPacks||{})[cat]||'';
-    select.onchange=()=>{ selectedPacks[cat]=select.value||''; setSelectedPacks(selectedPacks); };
-    drop.appendChild(label); drop.appendChild(select); card.appendChild(drop);
-
-    card.onclick=(e)=>{ if(e.target===select) return; 
-      if(selectedCats.includes(cat)){ selectedCats=selectedCats.filter(x=>x!==cat); card.classList.remove('active'); }
-      else if(selectedCats.length<6){ selectedCats.push(cat); card.classList.add('active'); }
-      setSelectedCategories(selectedCats); document.getElementById('selCount').textContent=(selectedCats?.length||0)+'/6';
-      document.getElementById('startBtn').disabled=(selectedCats.length!==6);
-    };
-    grid.appendChild(card);
-  });
-  document.getElementById('selCount').textContent=(selectedCats?.length||0)+'/6';
-  document.getElementById('startBtn').disabled=(selectedCats.length!==6);
-  document.getElementById('noData').style.display=all.length?'none':'block';
-}
-
-function pickRandom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-function buildBoard(){
-  const qs=listQuestions(); boardQuestions={}; selectedCats.forEach(cat=> boardQuestions[cat]={100:[],200:[],300:[],400:[]});
-  [100,200,300,400].forEach(level=>{
-    selectedCats.forEach(cat=>{
-      const chosen = (selectedPacks||{})[cat]||'';
-      const bucket=qs.filter(q=> q.category===cat && Number(q.level)===level && (!chosen || q.pack===chosen));
-      boardQuestions[cat][level]=bucket.slice();
-    });
-  });
-}
-function renderBoard(){
-  const board=document.getElementById('board'); board.innerHTML='';
-  const head=document.createElement('div'); head.style.display='grid'; head.style.gridTemplateColumns='repeat(6,1fr)'; head.style.gap='12px';
-  selectedCats.forEach(cat=>{ const h=document.createElement('div'); h.className='tile'; h.style.minHeight='60px'; h.textContent=cat; head.appendChild(h); });
-  board.appendChild(head);
-  const levels=[100,100,200,200,300,300,400];
-  levels.forEach(level=>{
-    const row=document.createElement('div'); row.className='board';
-    selectedCats.forEach(cat=>{
-      const pool = boardQuestions[cat][level] || [];
-      let q=null; if(pool.length){ q=pool.splice(Math.floor(Math.random()*pool.length),1)[0]; }
-      const t=document.createElement('div'); t.className='tile'; t.textContent=level;
-      if(!q) t.classList.add('disabled'); else t.onclick=()=> openModal(q,cat,level,t);
-      row.appendChild(t);
-    });
-    board.appendChild(row);
-  });
-}
-
-// Modal and logic
-let timer=null, timeLeft=60, stage='regular'; 
-let lifeline={ double:false, two:false };
-
-function updT(){ document.getElementById('timer').textContent=String(Math.floor(timeLeft/60)).padStart(2,'0')+':'+String(timeLeft%60).padStart(2,'0'); }
-function startT(){ stopT(); timer=setInterval(()=>{ if(timeLeft<=0){ stopT(); onTimeUp(); } else { timeLeft--; updT(); } },1000); }
-function stopT(){ if(timer){ clearInterval(timer); timer=null; } }
-function onTimeUp(){ if(stage==='regular') toSteal(); }
-function toSteal(){ if(stage==='steal') return; const names=getTeamNames(); const s=getScores(); stage='steal'; s.turn=(s.turn==='A'?'B':'A'); setScores(s); renderScore(); timeLeft=10; updT(); document.getElementById('mStage').textContent=' — السرقة: '+(s.turn==='A'?names.teamA:names.teamB)+' (10ث)'; refreshLifelineRow(); }
-function plus20(){ timeLeft+=20; updT(); }
-function refreshLifelineRow(){
-  const s=getScores(); const names=getTeamNames(); const cur=s.turn; const oth=(cur==='A'?'B':'A');
-  const used=s.used||{A:{},B:{}};
-  const bTwo=document.getElementById('twoTries');
-  const bDouble=document.getElementById('doublePts');
-  const bPlus=document.getElementById('plus20');
-  const bSteal=document.getElementById('stealBtn');
-  bTwo.disabled=!!used[cur].two; bDouble.disabled=!!used[cur].double; bPlus.disabled=!!used[cur].plus20;
-  bSteal.textContent='سرقة السؤال ('+(oth==='A'?names.teamA:names.teamB)+')';
-  bSteal.disabled=!!used[oth].steal || stage==='steal';
-}
-function _bindScoreAdjust(){ 
-  const addA=document.getElementById('addA'); const subA=document.getElementById('subA'); const addB=document.getElementById('addB'); const subB=document.getElementById('subB');
-  if(!addA||!subA||!addB||!subB) return;
-  const adj=(team,delta)=>{ const s=getScores(); s[team]+=delta; if(s[team]<0) s[team]=0; setScores(s); renderScore(); };
-  addA.onclick=()=>adj('A',100); subA.onclick=()=>adj('A',-100); addB.onclick=()=>adj('B',100); subB.onclick=()=>adj('B',-100);
-}
-
-function openModal(q,cat,level,tile){
-  const names=getTeamNames(); const s=getScores();
-  const m=document.getElementById('modal'); m.style.display='grid';
-  stage='regular'; lifeline={double:false, two:false}; timeLeft=60; updT();
-  document.getElementById('mTitle').textContent=cat+' • '+level;
-  document.getElementById('mStage').textContent=' — الدور: '+(s.turn==='A'?names.teamA:names.teamB);
-  document.getElementById('mQ').textContent = q.q || '—';
-  document.getElementById('mA').textContent = q.a || '';
-  document.getElementById('mA').style.display='none';
-  const img=document.getElementById('mImg'); const imgBtn=document.getElementById('openImg'); const imgTag=document.getElementById('imgTag');
-  const vwrap=document.getElementById('imgViewer'); const vimg=document.getElementById('viewerImg');
-  if(q.img && String(q.img).length>3){
-    img.src=q.img; img.classList.add('thumb-img'); img.style.display='block'; imgTag.style.display='inline-flex'; imgBtn.style.display='inline-block';
-    img.onclick=()=>{ vimg.src=q.img; vwrap.style.display='grid'; };
-    imgBtn.onclick=()=>{ vimg.src=q.img; vwrap.style.display='grid'; };
-  } else { img.removeAttribute('src'); img.style.display='none'; imgTag.style.display='none'; imgBtn.style.display='none'; }
-  document.getElementById('closeImg').onclick=()=>{ vwrap.style.display='none'; };
-
-  document.getElementById('showA').onclick=()=>{ const el=document.getElementById('mA'); el.style.display=(el.style.display==='none'?'block':'none'); };
-  document.getElementById('startTimer').onclick=startT;
-  document.getElementById('pauseTimer').onclick=stopT;
-  document.getElementById('resetTimer').onclick=()=>{ stopT(); timeLeft=(stage==='steal'?10:60); updT(); };
-  document.getElementById('switchTurnTop').onclick=toSteal;
-  document.getElementById('plus20').onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].plus20) return; plus20(); s.used[cur].plus20=true; setScores(s); refreshLifelineRow(); };
-  document.getElementById('doublePts').onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].double) return; lifeline.double=true; s.used[cur].double=true; setScores(s); document.getElementById('doublePts').classList.add('primary'); refreshLifelineRow(); };
-  document.getElementById('twoTries').onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].two) return; lifeline.two=true; s.used[cur].two=true; setScores(s); document.getElementById('twoTries').classList.add('primary'); refreshLifelineRow(); };
-  document.getElementById('stealBtn').onclick=()=>{ const s=getScores(); const oth=(s.turn==='A'?'B':'A'); if(s.used[oth].steal || stage==='steal') return; s.used[oth].steal=true; s.turn=oth; setScores(s); renderScore(); stage='regular'; document.getElementById('mStage').textContent=' — الدور: '+(oth==='A'?names.teamA:names.teamB)+' (سرقة السؤال)'; refreshLifelineRow(); };
-  document.getElementById('closeM').onclick=()=>{ stopT(); m.style.display='none'; };
-
-  const labelCur = (s.turn==='A'?names.teamA:names.teamB);
-  const labelOth = (s.turn==='A'?names.teamB:names.teamA);
-  document.getElementById('winCur').textContent='الفائز: '+labelCur+' ✔';
-  document.getElementById('winOth').textContent='الفائز: '+labelOth+' ✔';
-  const award = (team)=>{ const pts = lifeline.double? level*2 : level; addPoints(team, pts); switchTurn(); stopT(); m.style.display='none'; };
-  document.getElementById('winCur').onclick=()=> award(getScores().turn);
-  document.getElementById('winOth').onclick=()=> award(getScores().turn==='A'?'B':'A');
-  document.getElementById('winNone').onclick=()=>{ switchTurn(); stopT(); m.style.display='none'; };
-
-  tile.classList.add('disabled'); tile.onclick=null;
-  refreshLifelineRow();
-  startT();
-}
-
-window.addEventListener('DOMContentLoaded',()=>{
-  renderScore();
-  renderSetup();
-  const t=getTeamNames(); document.getElementById('teamA').value=t.teamA; document.getElementById('teamB').value=t.teamB;
-  document.getElementById('saveTeams').onclick=()=>{ setTeamNames({teamA:document.getElementById('teamA').value||'الفريق 1', teamB:document.getElementById('teamB').value||'الفريق 2'}); renderScore(); };
-  document.getElementById('startBtn').onclick=(e)=>{ try{ e?.preventDefault(); buildBoard(); renderBoard(); document.getElementById('setup').style.display='none'; document.getElementById('play').style.display='block'; }catch(err){ console.error('Start error', err); alert('حدث خطأ أثناء بدء اللعبة. تأكد من وجود أسئلة للفئات المختارة.'); } };
-  document.getElementById('swapTurn').onclick=()=>{ switchTurn(); };
-  document.getElementById('resetScore').onclick=()=>{ setScores({A:0,B:0,turn:'A', used:{A:{two:false,double:false,plus20:false,steal:false}, B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
-});
-</script>
-</head>
-<body>
+<title>سين جيم • البدء</title>
+<style>
+:root{--bg:#0b1220;--card:#0e172e;--line:#2b3550;--tile1:#1c243a;--tile2:#0d1424;--text:#e7e7ea;--accent:#6c8cff}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Segoe UI,Tahoma;direction:rtl;background:var(--bg);color:var(--text)}
+.container{max-width:1100px;margin:16px auto;padding:12px}
+.row{display:flex;gap:10px;align-items:center} .hint{opacity:.8}
+.btn{padding:8px 12px;border-radius:10px;border:1px solid #445;background:#1c2539;color:#fff;cursor:pointer}
+.btn.primary{background:#5b7cff} .btn.danger{background:#8b2d2d}
+.tag{background:#1b2234;padding:6px 10px;border-radius:999px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+.board{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.tile{display:grid;place-items:center;min-height:84px;border-radius:16px;background:linear-gradient(180deg,var(--tile1),var(--tile2));border:1px solid var(--line);font-weight:700;cursor:pointer}
+.tile.disabled{opacity:.35;cursor:not-allowed}
+/* Big category cards */
+.catsGrid{display:grid;gap:14px;grid-template-columns:repeat(3,1fr)}
+.catCard{background:linear-gradient(180deg,var(--tile1),var(--tile2));border:1px solid var(--line);border-radius:16px;padding:14px;cursor:pointer;min-height:120px;display:flex;flex-direction:column;justify-content:space-between}
+.catCard.active{outline:2px solid var(--accent)} .catCard h3{margin:0 0 8px 0;font-size:18px}
+.catCard .drop{display:none;margin-top:8px} .catCard.active .drop{display:block} .catCard select{width:100%}
+@media(max-width:900px){ .catsGrid{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:640px){ .catsGrid{grid-template-columns:1fr} }
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;place-items:center;z-index:999}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;max-width:980px;width:92vw}
+.input{background:#0d1424;color:var(--text);border:1px solid #28324a;border-radius:10px;padding:8px 10px}
+.thumb-img{max-height:22vh;max-width:100%;object-fit:contain;border-radius:12px;border:1px solid #e2e8f0;cursor:zoom-in;margin-top:8px}
+</style>
+</head><body>
 <main class="container">
   <div class="card">
     <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap">
@@ -204,9 +34,9 @@ window.addEventListener('DOMContentLoaded',()=>{
         <button class="btn" id="swapTurn" type="button">تبديل الدور</button>
       </div>
       <div class="row" style="gap:16px;flex-wrap:wrap">
-        <span class="tag"><b id="nameA">فريق 1</b> • <span id="scoreA">0</span></span>
+        <span class="tag"><b id="nameA">الفريق 1</b> • <span id="scoreA">0</span></span>
         <div class="row" style="gap:6px"><button class="btn" id="addA" type="button">+100</button><button class="btn" id="subA" type="button">-100</button></div>
-        <span class="tag"><b id="nameB">فريق 2</b> • <span id="scoreB">0</span></span>
+        <span class="tag"><b id="nameB">الفريق 2</b> • <span id="scoreB">0</span></span>
         <div class="row" style="gap:6px"><button class="btn" id="addB" type="button">+100</button><button class="btn" id="subB" type="button">-100</button></div>
         <button class="btn danger" id="resetScore" type="button">تصفير النقاط</button>
       </div>
@@ -214,16 +44,16 @@ window.addEventListener('DOMContentLoaded',()=>{
   </div>
 
   <div id="setup" class="card">
-      <h2 style="margin-top:0">اختر 6 فئات</h2>
-      <div id="catsGrid" class="catsGrid"></div>
-      <div class="row" style="justify-content:space-between;margin-top:12px">
-        <span class="tag" id="selCount">0/6</span>
-        <button class="btn primary" id="startBtn" type="button" disabled>بدء اللعبة</button>
-      </div>
-      <div id="noData" class="hint" style="margin-top:14px;display:none">لا توجد أسئلة بعد — استورد من صفحة الحِزم.</div>
+    <h2 style="margin-top:0">اختر 6 فئات</h2>
+    <div id="catsGrid" class="catsGrid"></div>
+    <div class="row" style="justify-content:space-between;margin-top:12px">
+      <span class="tag" id="selCount">0/6</span>
+      <button class="btn primary" id="startBtn" type="button" disabled>بدء اللعبة</button>
     </div>
+    <div class="hint" id="noData" style="display:none">لا توجد أسئلة بعد — استورد من صفحة الحِزم.</div>
+  </div>
 
-    <div id="play" style="display:none"> style="display:none">
+  <div id="play" style="display:none">
     <div class="card">
       <h2>لوحة الأسئلة</h2>
       <div id="board"></div>
@@ -232,7 +62,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 </main>
 
 <!-- Question Modal -->
-<div class="backdrop" id="modal">
+<div class="backdrop" id="modal" style="display:none">
   <div class="modal">
     <div class="row" style="justify-content:space-between">
       <h3 style="margin:0"><span id="mTitle">—</span><span id="mStage"></span></h3>
@@ -286,4 +116,85 @@ window.addEventListener('DOMContentLoaded',()=>{
 </div>
 
 <footer class="container"><span>سين جيم • البدء</span></footer>
+
+<script type="module">
+// ---- storage & schema (no external files) -----
+const K={ SETTINGS:"sj:settings", PACKS:"sj:packs", QUESTIONS:"sj:questions", SELECTED_CATS:"sj:selectedCats", SELECTED_PACKS:"sj:selectedPacks", TEAMS:"sj:teamNames", SCORE:"sj:scores" };
+const store={ get:(k,f)=>{ try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}}, set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)) };
+function defaults(){
+  if(!store.get(K.SETTINGS,null)) store.set(K.SETTINGS,{roundTime:60, stealTime:10});
+  if(!store.get(K.PACKS,null)) store.set(K.PACKS,[]);
+  if(!store.get(K.QUESTIONS,null)) store.set(K.QUESTIONS,[]);
+  if(!store.get(K.SELECTED_CATS,null)) store.set(K.SELECTED_CATS,[]);
+  if(!store.get(K.SELECTED_PACKS,null)) store.set(K.SELECTED_PACKS,{});
+  if(!store.get(K.TEAMS,null)) store.set(K.TEAMS,{teamA:"الفريق 1", teamB:"الفريق 2"});
+  if(!store.get(K.SCORE,null)) store.set(K.SCORE,{A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}});
+}
+defaults();
+const listPacks=()=>store.get(K.PACKS,[]);
+const listQuestions=()=>store.get(K.QUESTIONS,[]);
+const packsByCategory=(c)=>listPacks().filter(p=>(p.category||"غير مصنفة")===c);
+const listCategories=()=>{ const p=Array.from(new Set(listPacks().map(p=>p.category||"غير مصنفة"))); return p.length?p:Array.from(new Set(listQuestions().map(q=>q.category||"غير مصنفة"))); };
+const getSelectedCategories=()=>store.get(K.SELECTED_CATS,[]);
+const setSelectedCategories=(v)=>store.set(K.SELECTED_CATS,v||[]);
+const getSelectedPacks=()=>store.get(K.SELECTED_PACKS,{});
+const setSelectedPacks=(m)=>store.set(K.SELECTED_PACKS,m||{});
+const getScores=()=>store.get(K.SCORE,{A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}});
+const setScores=(s)=>store.set(K.SCORE,s);
+const getTeamNames=()=>store.get(K.TEAMS,{teamA:"الفريق 1", teamB:"الفريق 2"});
+
+// ---- page logic -----
+let selectedCats=[]; let selectedPacks=getSelectedPacks(); let boardQuestions={};
+
+function renderScore(){ const n=getTeamNames(); const s=getScores(); document.getElementById("nameA").textContent=n.teamA; document.getElementById("nameB").textContent=n.teamB; document.getElementById("scoreA").textContent=s.A; document.getElementById("scoreB").textContent=s.B; document.getElementById("turn").textContent=(s.turn==="A"?n.teamA:n.teamB); _bindScoreAdjust(); }
+function addPoints(team,pts){ const s=getScores(); s[team]+=pts; if(s[team]<0)s[team]=0; setScores(s); renderScore(); }
+function switchTurn(){ const s=getScores(); s.turn=(s.turn==="A"?"B":"A"); setScores(s); renderScore(); }
+function _bindScoreAdjust(){ ["addA","subA","addB","subB"].forEach(id=>{ const el=document.getElementById(id); if(!el._bound){ el._bound=true; } }); document.getElementById("addA").onclick=()=>addPoints("A",100); document.getElementById("subA").onclick=()=>addPoints("A",-100); document.getElementById("addB").onclick=()=>addPoints("B",100); document.getElementById("subB").onclick=()=>addPoints("B",-100); }
+
+function renderSetup(){
+  const all=listCategories(); const grid=document.getElementById("catsGrid"); grid.innerHTML="";
+  const saved=getSelectedCategories().filter(c=>all.includes(c)); selectedCats=saved.length?saved.slice(0,6):all.slice(0,6);
+  const qs=listQuestions();
+  all.forEach(cat=>{
+    const card=document.createElement("div"); card.className="catCard"+(selectedCats.includes(cat)?" active":"");
+    const title=document.createElement("h3"); title.textContent=cat; card.appendChild(title);
+    const total=qs.filter(q=>q.category===cat).length; const meta=document.createElement("div"); meta.className="row";
+    const tag=document.createElement("span"); tag.className="tag"; tag.textContent="عدد الأسئلة: "+total; meta.appendChild(tag); card.appendChild(meta);
+    const drop=document.createElement("div"); drop.className="drop";
+    const label=document.createElement("div"); label.textContent="اختر الحزمة لهذه الفئة:";
+    const select=document.createElement("select"); select.className="input";
+    const packs=packsByCategory(cat); const optAny=document.createElement("option"); optAny.value=""; optAny.textContent="من كل الحزم (عدد: "+total+")"; select.appendChild(optAny);
+    packs.forEach(p=>{ const m=qs.filter(q=>q.category===cat && q.pack===p.id).length; const o=document.createElement("option"); o.value=p.id; o.textContent="حزمة: "+p.name+" (عدد: "+m+")"; select.appendChild(o); });
+    select.value=(selectedPacks||{})[cat]||""; select.onchange=()=>{ selectedPacks[cat]=select.value||""; setSelectedPacks(selectedPacks); };
+    drop.appendChild(label); drop.appendChild(select); card.appendChild(drop);
+    card.onclick=(e)=>{ if(e.target===select) return; if(selectedCats.includes(cat)){ selectedCats=selectedCats.filter(x=>x!==cat); card.classList.remove("active"); } else if(selectedCats.length<6){ selectedCats.push(cat); card.classList.add("active"); } setSelectedCategories(selectedCats); document.getElementById("selCount").textContent=(selectedCats?.length||0)+"/6"; document.getElementById("startBtn").disabled=(selectedCats.length!==6); };
+    grid.appendChild(card);
+  });
+  document.getElementById("selCount").textContent=(selectedCats?.length||0)+"/6";
+  document.getElementById("startBtn").disabled=(selectedCats.length!==6);
+  document.getElementById("noData").style.display=all.length?"none":"block";
+}
+
+function buildBoard(){ const qs=listQuestions(); boardQuestions={}; selectedCats.forEach(cat=> boardQuestions[cat]={100:[],200:[],300:[],400:[]}); [100,200,300,400].forEach(level=>{ selectedCats.forEach(cat=>{ const chosen=(selectedPacks||{})[cat]||""; const bucket=qs.filter(q=> q.category===cat && Number(q.level)===level && (!chosen || q.pack===chosen)); boardQuestions[cat][level]=bucket.slice(); }); }); }
+function renderBoard(){ const board=document.getElementById("board"); board.innerHTML=""; const head=document.createElement("div"); head.style.display="grid"; head.style.gridTemplateColumns="repeat(6,1fr)"; head.style.gap="12px"; selectedCats.forEach(cat=>{ const h=document.createElement("div"); h.className="tile"; h.style.minHeight="60px"; h.textContent=cat; head.appendChild(h); }); board.appendChild(head); const levels=[100,100,200,200,300,300,400]; levels.forEach(level=>{ const row=document.createElement("div"); row.className="board"; selectedCats.forEach(cat=>{ const pool=boardQuestions[cat][level]||[]; let q=null; if(pool.length){ q=pool.splice(Math.floor(Math.random()*pool.length),1)[0]; } const t=document.createElement("div"); t.className="tile"; t.textContent=level; if(!q) t.classList.add("disabled"); else t.onclick=()=>openModal(q,cat,level,t); row.appendChild(t); }); board.appendChild(row); }); }
+
+// Modal + lifelines
+let timer=null, timeLeft=60, stage="regular"; let lifeline={double:false,two:false};
+function updT(){ document.getElementById("timer").textContent=String(Math.floor(timeLeft/60)).padStart(2,"0")+":"+String(timeLeft%60).padStart(2,"0"); }
+function startT(){ stopT(); timer=setInterval(()=>{ if(timeLeft<=0){ stopT(); onTimeUp(); } else { timeLeft--; updT(); } },1000); }
+function stopT(){ if(timer){ clearInterval(timer); timer=null; } }
+function onTimeUp(){ if(stage==="regular") toSteal(); }
+function toSteal(){ if(stage==="steal") return; const names=getTeamNames(); const s=getScores(); stage="steal"; s.turn=(s.turn==="A"?"B":"A"); setScores(s); renderScore(); timeLeft=10; updT(); document.getElementById("mStage").textContent=" — السرقة"; refreshLifelineRow(); }
+function plus20(){ timeLeft+=20; updT(); }
+function refreshLifelineRow(){ const s=getScores(); const cur=s.turn; const oth=(cur==="A"?"B":"A"); const used=s.used; document.getElementById("twoTries").disabled=!!used[cur].two; document.getElementById("doublePts").disabled=!!used[cur].double; document.getElementById("plus20").disabled=!!used[cur].plus20; document.getElementById("stealBtn").disabled=!!used[oth].steal || stage==="steal"; }
+function openModal(q,cat,level,tile){ const names=getTeamNames(); const s=getScores(); const m=document.getElementById("modal"); m.style.display="grid"; stage="regular"; lifeline={double:false,two:false}; timeLeft=60; updT(); document.getElementById("mTitle").textContent=cat+" • "+level; document.getElementById("mStage").textContent=" — الدور: "+(s.turn==="A"?names.teamA:names.teamB); document.getElementById("mQ").textContent=q.q||"—"; document.getElementById("mA").textContent=q.a||""; document.getElementById("mA").style.display="none"; const img=document.getElementById("mImg"); const imgBtn=document.getElementById("openImg"); const imgTag=document.getElementById("imgTag"); const vwrap=document.getElementById("imgViewer"); const vimg=document.getElementById("viewerImg"); if(q.img&&String(q.img).length>3){ img.src=q.img; img.style.display="block"; imgTag.style.display="inline-flex"; imgBtn.style.display="inline-block"; img.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; }; imgBtn.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; }; }else{ img.removeAttribute("src"); img.style.display="none"; imgTag.style.display="none"; imgBtn.style.display="none"; } document.getElementById("closeImg").onclick=()=>{ document.getElementById("imgViewer").style.display="none"; }; document.getElementById("showA").onclick=()=>{ const el=document.getElementById("mA"); el.style.display=(el.style.display==="none"?"block":"none"); }; document.getElementById("startTimer").onclick=startT; document.getElementById("pauseTimer").onclick=stopT; document.getElementById("resetTimer").onclick=()=>{ stopT(); timeLeft=(stage==="steal"?10:60); updT(); }; document.getElementById("switchTurnTop").onclick=toSteal; document.getElementById("plus20").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].plus20) return; plus20(); s.used[cur].plus20=true; setScores(s); refreshLifelineRow(); }; document.getElementById("doublePts").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].double) return; lifeline.double=true; s.used[cur].double=true; setScores(s); document.getElementById("doublePts").classList.add("primary"); refreshLifelineRow(); }; document.getElementById("twoTries").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].two) return; lifeline.two=true; s.used[cur].two=true; setScores(s); document.getElementById("twoTries").classList.add("primary"); refreshLifelineRow(); }; document.getElementById("stealBtn").onclick=()=>{ const s=getScores(); const oth=(s.turn==="A"?"B":"A"); if(s.used[oth].steal||stage==="steal") return; s.used[oth].steal=true; s.turn=oth; setScores(s); renderScore(); stage="regular"; document.getElementById("mStage").textContent=" — الدور: "+(oth==="A"?names.teamA:names.teamB)+" (سرقة)"; refreshLifelineRow(); }; document.getElementById("closeM").onclick=()=>{ stopT(); m.style.display="none"; }; const award=(team)=>{ const pts=lifeline.double? level*2 : level; addPoints(team,pts); switchTurn(); stopT(); m.style.display="none"; }; document.getElementById("winCur").onclick=()=>award(getScores().turn); document.getElementById("winOth").onclick=()=>award(getScores().turn==="A"?"B":"A"); document.getElementById("winNone").onclick=()=>{ switchTurn(); stopT(); m.style.display="none"; }; tile.classList.add("disabled"); tile.onclick=null; refreshLifelineRow(); startT(); }
+
+window.addEventListener("DOMContentLoaded",()=>{
+  renderScore();
+  renderSetup();
+  document.getElementById("startBtn").onclick=(e)=>{ try{ e?.preventDefault(); buildBoard(); renderBoard(); document.getElementById("setup").style.display="none"; document.getElementById("play").style.display="block"; }catch(err){ console.error("Start error",err); alert("حدث خطأ أثناء بدء اللعبة. تأكد من وجود أسئلة للفئات المختارة."); } };
+  document.getElementById("swapTurn").onclick=switchTurn;
+  document.getElementById("resetScore").onclick=()=>{ setScores({A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
+});
+</script>
 </body></html>
