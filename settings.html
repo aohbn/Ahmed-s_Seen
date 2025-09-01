@@ -1,18 +1,86 @@
-<!doctype html><html lang="ar" dir="rtl"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>سين جيم • الرئيسية</title><link rel="stylesheet" href="/assets/style.css"></head>
+<!doctype html><html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Seen Jeem • Settings</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script type="module">
+    import { activateTab, store, SETTINGS_KEY } from "/assets/app.js";
+    window.addEventListener('DOMContentLoaded', ()=>{
+      activateTab('/settings.html');
+      const settings = store.get(SETTINGS_KEY,{players:2,roundTime:60,difficulty:'normal'});
+      const playersInput = document.getElementById('playersInput');
+      const roundTimeInput = document.getElementById('roundTimeInput');
+      const difficultySelect = document.getElementById('difficultySelect');
+      const hint = document.getElementById('saveSettingsHint');
+      const preview = {
+        players: document.getElementById('playersPreview'),
+        roundTime: document.getElementById('roundTimePreview'),
+        difficulty: document.getElementById('difficultyPreview'),
+      };
+      function render(){
+        playersInput.value = settings.players;
+        roundTimeInput.value = settings.roundTime;
+        difficultySelect.value = settings.difficulty;
+        preview.players.textContent = settings.players;
+        preview.roundTime.textContent = settings.roundTime+' s';
+        preview.difficulty.textContent = settings.difficulty;
+      }
+      render();
+      document.getElementById('saveSettingsBtn').addEventListener('click', ()=>{
+        settings.players = Math.max(1, Number(playersInput.value||1));
+        settings.roundTime = Math.max(10, Number(roundTimeInput.value||60));
+        settings.difficulty = difficultySelect.value||'normal';
+        store.set(SETTINGS_KEY, settings);
+        render();
+        hint.textContent = 'Saved!'; setTimeout(()=>hint.textContent='',1200);
+      });
+    });
+  </script>
+</head>
 <body>
-  <header class="nav">
+   <header class="nav">
     <div class="container nav-inner">
-      <nav class="tabs"><a class="tab active" href="/">الرئيسية</a><a class="tab" href="/packs">الحِزم</a><a class="tab" href="/questions">الأسئلة</a><a class="tab" href="/game">البدء</a><a class="tab" href="/settings">الإعدادات</a></nav>
+      <div class="brand">🎮 Seen Jeem</div>
       <div class="spacer"></div>
-      <div class="brand">🎮 سين جيم</div>
+      <nav class="tabs" id="tabs">
+        <a class="tab" href="index.html">Home</a>
+        <a class="tab" href="game.html">Game</a>
+        <a class="tab" href="settings.html">Settings</a>
+        <a class="tab" href="questions.html">Questions</a>
+        <a class="tab" href="packs.html">Packs</a>
+      </nav>
     </div>
   </header>
-<main class="container">
-  <div class="grid cols-2">
-    <div class="card"><h2>الحِزم</h2><p class="hint">إدارة الفئات والحِزم والأسئلة.</p><a class="btn primary" href="/packs">فتح صفحة الحِزم</a></div>
-    <div class="card"><h2>ابدأ اللعب</h2><p class="hint">اختر 6 فئات من الأسئلة التي قمت باستيرادها.</p><a class="btn" href="/game">بدء اللعبة</a></div>
-  </div>
-</main>
+  <main class="container">
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>Game Settings</h2>
+        <div class="grid">
+          <label>Number of Players <input class="input" type="number" min="1" id="playersInput"></label>
+          <label>Round Time (seconds) <input class="input" type="number" min="10" step="5" id="roundTimeInput"></label>
+          <label>Difficulty
+            <select id="difficultySelect" class="input">
+              <option value="easy">Easy</option>
+              <option value="normal" selected>Normal</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="saveSettingsBtn">Save Settings</button>
+          <span class="hint" id="saveSettingsHint"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Current Settings</h3>
+        <div class="list">
+          <div class="list-item"><span>Players</span><span class="tag" id="playersPreview">–</span></div>
+          <div class="list-item"><span>Round Time</span><span class="tag" id="roundTimePreview">–</span></div>
+          <div class="list-item"><span>Difficulty</span><span class="tag" id="difficultyPreview">–</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer><span>Seen Jeem • Settings</span></footer>
+  <script type="module">import "/assets/app.js";</script>
 </body></html>
