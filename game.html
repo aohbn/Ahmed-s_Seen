@@ -1,8 +1,8 @@
 <!doctype html><html lang="ar" dir="rtl"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>سين جيم • البدء</title><link rel="stylesheet" href="/assets/style.css">
+<title>سين جيم • البدء</title><link rel="stylesheet" href="assets/style.css">
 <script type="module">
-import { listQuestions, listCategories, packsByCategory, getSelectedCategories, setSelectedCategories, getSelectedPacks, setSelectedPacks, getTeamNames, setTeamNames, getScores, setScores } from "/assets/app.js";
+import { listQuestions, listCategories, packsByCategory, getSelectedCategories, setSelectedCategories, getSelectedPacks, setSelectedPacks, getTeamNames, setTeamNames, getScores, setScores } from "./assets/app.js";
 
 let selectedCats = []; 
 let selectedPacks = getSelectedPacks();
@@ -22,10 +22,6 @@ function switchTurn(){ const s=getScores(); s.turn=(s.turn==='A'?'B':'A'); setSc
 
 function allCategories(){ return listCategories(); }
 
-function renderPackSelectors(){
-  const wrap = document.getElementById('packSelectors');
-  wrap.innerHTML='';
-  if(!selectedCats.length){ wrap.style.display='none'; return; }
   wrap.style.display='block';
   const qs = listQuestions();
   selectedCats.forEach(cat=>{
@@ -46,39 +42,45 @@ function renderPackSelectors(){
   });
   renderChosenBadges();
 }
-function renderChosenBadges(){
-  const badge=document.getElementById('chosenPacksBadges'); badge.innerHTML='';
-  const qs=listQuestions();
-  selectedCats.forEach(cat=>{
-    const d=document.createElement('span'); d.className='tag';
-    const packs=packsByCategory(cat);
-    const chosenId=selectedPacks[cat]||'';
-    let label='كل الحزم'; let count=qs.filter(q=> q.category===cat).length;
-    if(chosenId){
-      const chosen = packs.find(p=>p.id===chosenId);
-      const m = qs.filter(q=> q.category===cat && q.pack===chosenId).length;
-      label = (chosen?('حزمة: '+chosen.name):('حزمة: '+chosenId))+' (عدد: '+m+')';
-    } else {
-      label += ' (عدد: '+count+')';
-    }
     d.textContent = cat + ' • ' + label;
     badge.appendChild(d);
   });
 }
 
+
 function renderSetup(){
-  const all=allCategories(); const wrap=document.getElementById('cats'); wrap.innerHTML='';
+  const all=listCategories(); const grid=document.getElementById('catsGrid'); grid.innerHTML='';
   const saved=getSelectedCategories().filter(c=>all.includes(c));
   selectedCats=saved.length?saved.slice(0,6):all.slice(0,6);
-  all.forEach(c=>{
-    const el=document.createElement('div'); el.className='tile'+(selectedCats.includes(c)?' active':''); el.textContent=c;
-    el.onclick=()=>{ if(selectedCats.includes(c)) selectedCats=selectedCats.filter(x=>x!==c); else if(selectedCats.length<6) selectedCats.push(c); setSelectedCategories(selectedCats); renderSetup(); };
-    wrap.appendChild(el);
+  const qs=listQuestions();
+  all.forEach(cat=>{
+    const card=document.createElement('div'); card.className='catCard'+(selectedCats.includes(cat)?' active':'');
+    const title=document.createElement('h3'); title.textContent=cat; card.appendChild(title);
+    const meta=document.createElement('div'); meta.className='row'; 
+    const total=qs.filter(q=>q.category===cat).length;
+    const tag=document.createElement('span'); tag.className='tag'; tag.textContent='عدد الأسئلة: '+total; meta.appendChild(tag); card.appendChild(meta);
+
+    const drop=document.createElement('div'); drop.className='drop';
+    const label=document.createElement('div'); label.textContent='اختر الحزمة لهذه الفئة:';
+    const select=document.createElement('select'); select.className='input';
+    const packs=packsByCategory(cat);
+    const optAny=document.createElement('option'); optAny.value=''; optAny.textContent='من كل الحزم (عدد: '+total+')'; select.appendChild(optAny);
+    packs.forEach(p=>{ const m=qs.filter(q=>q.category===cat && q.pack===p.id).length; const o=document.createElement('option'); o.value=p.id; o.textContent='حزمة: '+p.name+' (عدد: '+m+')'; select.appendChild(o); });
+    select.value=(selectedPacks||{})[cat]||'';
+    select.onchange=()=>{ selectedPacks[cat]=select.value||''; setSelectedPacks(selectedPacks); };
+    drop.appendChild(label); drop.appendChild(select); card.appendChild(drop);
+
+    card.onclick=(e)=>{ if(e.target===select) return; 
+      if(selectedCats.includes(cat)){ selectedCats=selectedCats.filter(x=>x!==cat); card.classList.remove('active'); }
+      else if(selectedCats.length<6){ selectedCats.push(cat); card.classList.add('active'); }
+      setSelectedCategories(selectedCats); document.getElementById('selCount').textContent=(selectedCats?.length||0)+'/6';
+      document.getElementById('startBtn').disabled=(selectedCats.length!==6);
+    };
+    grid.appendChild(card);
   });
   document.getElementById('selCount').textContent=(selectedCats?.length||0)+'/6';
   document.getElementById('startBtn').disabled=(selectedCats.length!==6);
   document.getElementById('noData').style.display=all.length?'none':'block';
-  renderPackSelectors();
 }
 
 function pickRandom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
@@ -211,26 +213,17 @@ window.addEventListener('DOMContentLoaded',()=>{
     </div>
   </div>
 
-  <div id="setup" class="grid cols-2">
-    <div class="card">
-      <h2>أسماء الفرق</h2>
-      <div class="grid">
-        <label>الفريق 1 <input id="teamA" class="input" placeholder="الفريق 1"></label>
-        <label>الفريق 2 <input id="teamB" class="input" placeholder="الفريق 2"></label>
+  <div id="setup" class="card">
+      <h2 style="margin-top:0">اختر 6 فئات</h2>
+      <div id="catsGrid" class="catsGrid"></div>
+      <div class="row" style="justify-content:space-between;margin-top:12px">
+        <span class="tag" id="selCount">0/6</span>
+        <button class="btn primary" id="startBtn" type="button" disabled>بدء اللعبة</button>
       </div>
-      <div class="row" style="margin-top:10px"><button class="btn" id="saveTeams" type="button">حفظ</button></div>
-    </div>
-    <div class="card">
-      <h2>اختر 6 فئات</h2>
-      <div class="catSel" id="cats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
-      <div id="packSelectors" style="margin-top:12px"></div>
-      <div id="chosenPacksBadges" class="row" style="gap:8px;margin-top:6px"></div>
-      <div class="row" style="justify-content:space-between;margin-top:10px"><span class="tag" id="selCount">0/6</span><button class="btn primary" id="startBtn" type="button" disabled>بدء اللعبة</button></div>
       <div id="noData" class="hint" style="margin-top:14px;display:none">لا توجد أسئلة بعد — استورد من صفحة الحِزم.</div>
     </div>
-  </div>
 
-  <div id="play" style="display:none">
+    <div id="play" style="display:none"> style="display:none">
     <div class="card">
       <h2>لوحة الأسئلة</h2>
       <div id="board"></div>
