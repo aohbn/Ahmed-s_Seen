@@ -1,82 +1,127 @@
-<!doctype html><html lang="en">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Seen Jeem • Packs</title>
-  <link rel="stylesheet" href="/assets/style.css">
-  <script type="module">
-    import { activateTab, store, PACKS_KEY, ACTIVE_PACK_KEY, QUESTIONS_KEY } from "/assets/app.js";
-    function render(){
-      const list = document.getElementById('packsList'); list.innerHTML='';
-      const packs = store.get(PACKS_KEY,[]);
-      const active = store.get(ACTIVE_PACK_KEY,'default');
-      document.getElementById('selectedPackTag').textContent = (packs.find(p=>p.id===active)?.name)||'Default';
-      packs.forEach(p=>{
-        const row = document.createElement('div'); row.className='list-item';
-        const isActive = p.id===active;
-        row.innerHTML = `<span>${p.name} ${isActive?'<span class="tag">Active</span>':''}</span>
-          <span class="row">
-            ${!isActive?`<button class="btn" data-activate="${p.id}">Use</button>`:''}
-            ${p.id!=='default'?`<button class="btn danger" data-delete="${p.id}">Delete</button>`:''}
-          </span>`;
-        list.appendChild(row);
-      });
-      list.querySelectorAll('[data-activate]').forEach(b=>{
-        b.addEventListener('click', ()=>{ store.set(ACTIVE_PACK_KEY, b.dataset.activate); render(); });
-      });
-      list.querySelectorAll('[data-delete]').forEach(b=>{
-        b.addEventListener('click', ()=>{
-          const id = b.dataset.delete;
-          if(!confirm('Delete this pack?')) return;
-          const packs = store.get(PACKS_KEY,[]).filter(p=>p.id!==id);
-          store.set(PACKS_KEY, packs);
-          const qs = store.get(QUESTIONS_KEY,[]).filter(q=>q.pack!==id);
-          store.set(QUESTIONS_KEY, qs);
-          if(store.get(ACTIVE_PACK_KEY,'default')===id) store.set(ACTIVE_PACK_KEY,'default');
-          render();
-        });
-      });
-    }
-    window.addEventListener('DOMContentLoaded', ()=>{
-      activateTab('/packs.html');
-      document.getElementById('createPackBtn').addEventListener('click', ()=>{
-        const name = (document.getElementById('packNameInput').value||'').trim();
-        if(!name) return;
-        const id = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'pack-'+Date.now();
-        const all = store.get(PACKS_KEY,[]);
-        if(all.some(p=>p.id===id)) { alert('Pack already exists'); return; }
-        all.push({id,name}); store.set(PACKS_KEY, all);
-        document.getElementById('packNameInput').value=''; render();
-      });
-      render();
-    });
-  </script>
-</head>
+<!doctype html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سين جيم • الحِزم</title><link rel="stylesheet" href="/assets/style.css">
+<script type="module">
+  import { listPacks, listCategories, packsByCategory, questionsByPack, addPack, deletePack, deleteCategory, deleteQuestion, deleteAll, exportAll, importAllFromFile, store } from "/assets/app.js";
+  let selectedCat = null;
+
+  function renderCategories(){
+    const wrap = document.getElementById('catList'); wrap.innerHTML='';
+    const cats = listCategories();
+    if(!cats.length){ wrap.innerHTML='<div class="hint">لا توجد فئات بعد.</div>'; document.getElementById('packsCol').innerHTML='<div class="hint">اختر فئة لعرض الحِزم.</div>'; return; }
+    if(!selectedCat || !cats.includes(selectedCat)) selectedCat = cats[0];
+    cats.forEach(cat=>{ const row=document.createElement('div'); row.className='list-item'; const left=document.createElement('div'); left.textContent=cat; const right=document.createElement('div'); right.className='row';
+      const btnSel=document.createElement('button'); btnSel.className='btn'; btnSel.textContent='فتح'; btnSel.dataset.cat=cat; btnSel.addEventListener('click',()=>{ selectedCat=cat; renderPacks(); });
+      const btnDel=document.createElement('button'); btnDel.className='btn danger'; btnDel.textContent='حذف الفئة'; btnDel.dataset.cat=cat; btnDel.addEventListener('click',()=>{ if(confirm('حذف الفئة وجميع حِزمها؟')){ deleteCategory(cat); renderCategories(); renderPacks(); } });
+      right.appendChild(btnSel); right.appendChild(btnDel); row.appendChild(left); row.appendChild(right); wrap.appendChild(row); });
+    renderPacks();
+  }
+
+  function renderPacks(){
+    const wrap = document.getElementById('packsCol'); wrap.innerHTML='';
+    if(!selectedCat){ wrap.innerHTML='<div class="hint">اختر فئة لعرض الحِزم.</div>'; return; }
+    const packs = packsByCategory(selectedCat);
+    const title=document.getElementById('packsTitle'); title.textContent='حِزم — '+selectedCat;
+    if(!packs.length){ wrap.innerHTML='<div class="hint">لا توجد حِزم داخل هذه الفئة.</div>'; return; }
+    packs.forEach(p=>{ const row=document.createElement('div'); row.className='list-item';
+      const left=document.createElement('div'); left.textContent=p.name; const right=document.createElement('div'); right.className='row';
+      const tag=document.createElement('span'); tag.className='tag'; tag.textContent=questionsByPack(p.id).length+' سؤال';
+      const view=document.createElement('button'); view.className='btn'; view.textContent='عرض الأسئلة'; view.addEventListener('click',()=>showPack(p.id));
+      const del=document.createElement('button'); del.className='btn danger'; del.textContent='حذف'; del.addEventListener('click',()=>{ if(confirm('حذف الحزمة؟')){ deletePack(p.id); renderPacks(); } });
+      right.appendChild(tag); right.appendChild(view); right.appendChild(del); row.appendChild(left); row.appendChild(right); wrap.appendChild(row); });
+  }
+
+  function showPack(packId){
+    const qs = questionsByPack(packId);
+    const modal=document.getElementById('qModal'); const list=document.getElementById('qList'); list.innerHTML='';
+    if(!qs.length) list.innerHTML='<div class="hint">لا أسئلة.</div>';
+    qs.forEach(q=>{ const li=document.createElement('div'); li.className='list-item';
+      const content=document.createElement('div'); content.style.maxWidth='70%'; content.innerHTML='<div style="font-weight:700">['+q.level+']</div><div>'+ (q.q||'').slice(0,200) +'</div><div class="hint">الإجابة: '+(q.a||'')+'</div>';
+      const del=document.createElement('button'); del.className='btn danger'; del.textContent='حذف السؤال'; del.addEventListener('click',()=>{ if(confirm('حذف هذا السؤال؟')){ deleteQuestion(q.id); showPack(packId); } });
+      li.appendChild(content); li.appendChild(del); list.appendChild(li); });
+    modal.style.display='grid';
+  }
+
+  function createPack(){
+    const name=(document.getElementById('packName').value||'').trim();
+    const cat =(document.getElementById('packCat').value||'غير مصنفة').trim();
+    if(!name) return;
+    addPack(name, cat);
+    document.getElementById('packName').value='';
+    selectedCat = cat;
+    renderCategories();
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    renderCategories();
+    // Import / Export
+    document.getElementById('exportBtn').onclick = exportAll;
+    document.getElementById('wipeBtn').onclick = ()=>{ if(confirm('حذف جميع الحِزم والأسئلة؟')){ deleteAll(); renderCategories(); } };
+    document.getElementById('resetLS').onclick = ()=>{ if(confirm('تفريغ التخزين المحلي؟')){ store.clearAll(); location.reload(); } };
+    const fileInput = document.getElementById('importFile');
+    document.getElementById('importMerge').onclick=()=>{ fileInput.dataset.mode='merge'; fileInput.value=''; fileInput.click(); };
+    document.getElementById('importReplace').onclick=()=>{ fileInput.dataset.mode='replace'; fileInput.value=''; fileInput.click(); };
+    fileInput.onchange = async()=>{ if(!fileInput.files.length) return; const mode=fileInput.dataset.mode||'merge'; try{ await importAllFromFile(fileInput.files[0], mode); document.getElementById('status').textContent='✓ تم الاستيراد'; renderCategories(); }catch(e){ document.getElementById('status').textContent='فشل: '+e.message; } };
+    // Create
+    document.getElementById('createBtn').onclick = createPack;
+    // Close modal
+    document.getElementById('closeQModal').onclick = ()=> document.getElementById('qModal').style.display='none';
+  });
+</script></head>
 <body>
   <header class="nav">
     <div class="container nav-inner">
-      <div class="brand">🎮 Seen Jeem</div>
+      <nav class="tabs"><a class="tab" href="/">الرئيسية</a><a class="tab active" href="/packs">الحِزم</a><a class="tab" href="/questions">الأسئلة</a><a class="tab" href="/game">البدء</a><a class="tab" href="/settings">الإعدادات</a></nav>
       <div class="spacer"></div>
-      <nav class="tabs" id="tabs">
-        <a class="tab" href="index.html">Home</a>
-        <a class="tab" href="game.html">Game</a>
-        <a class="tab" href="settings.html">Settings</a>
-        <a class="tab" href="questions.html">Questions</a>
-        <a class="tab" href="packs.html">Packs</a>
-      </nav>
+      <div class="brand">🎮 سين جيم</div>
     </div>
   </header>
-  <main class="container">
-    <div class="card">
-      <h2>Packs</h2>
-      <p class="hint">Create sets of questions. Select one to use.</p>
-      <div class="grid cols-2">
-        <label>Pack Name <input id="packNameInput" class="input" placeholder="e.g., General Knowledge"></label>
-        <div class="row" style="align-items:flex-end"><button class="btn primary" id="createPackBtn">Create Pack</button></div>
-      </div>
-      <h3 style="margin-top:18px">Your Packs <span class="tag" id="selectedPackTag">Default</span></h3>
-      <div id="packsList" class="list"></div>
+<main class="container">
+  <div class="card">
+    <h2>استيراد/تصدير</h2>
+    <div class="row">
+      <input type="file" id="importFile" accept="application/json,.json" class="input" style="max-width:280px">
+      <button class="btn" id="importMerge" type="button">استيراد (دمج)</button>
+      <button class="btn danger" id="importReplace" type="button">استيراد (استبدال)</button>
+      <button class="btn" id="exportBtn" type="button">تصدير JSON</button>
+      <button class="btn danger" id="wipeBtn" type="button">حذف كل الحِزم</button>
+      <button class="btn" id="resetLS" type="button">تفريغ البيانات</button>
+      <span class="hint" id="status"></span>
     </div>
-  </main>
-  <footer><span>Seen Jeem • Packs</span></footer>
-  <script type="module">import "/assets/app.js";</script>
+  </div>
+
+  <div class="grid cols-3" style="margin-top:16px">
+    <!-- Column 1: Create -->
+    <div class="card">
+      <h2>إنشاء حزمة</h2>
+      <div class="grid cols-2">
+        <label>الفئة <input id="packCat" class="input" placeholder="مثال: جغرافيا"></label>
+        <label>اسم الحزمة <input id="packName" class="input" placeholder="مثال: عواصم"></label>
+      </div>
+      <div class="row" style="margin-top:8px"><button class="btn primary" id="createBtn" type="button">إنشاء</button></div>
+    </div>
+
+    <!-- Column 2: Categories -->
+    <div class="card">
+      <h2>الفئات</h2>
+      <div id="catList" class="list"></div>
+    </div>
+
+    <!-- Column 3: Packs of selected category -->
+    <div class="card">
+      <h2 id="packsTitle">حِزم</h2>
+      <div id="packsCol" class="list"></div>
+    </div>
+  </div>
+</main>
+
+<!-- Pack Questions Modal -->
+<div class="backdrop" id="qModal" style="display:none">
+  <div class="modal">
+    <div class="row" style="justify-content:space-between"><h3>أسئلة الحزمة</h3><button class="btn" id="closeQModal" type="button">إغلاق ✕</button></div>
+    <div id="qList" class="list"></div>
+  </div>
+</div>
+
+<footer><span>سين جيم • الحِزم</span></footer>
 </body></html>

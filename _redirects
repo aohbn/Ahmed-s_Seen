@@ -1,1 +1,6 @@
-/*    /index.html   200
+/ /index.html 200
+/packs /packs.html 200
+/questions /questions.html 200
+/game /game.html 200
+/settings /settings.html 200
+/assets/* /assets/:splat 200

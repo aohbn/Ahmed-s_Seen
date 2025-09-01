@@ -1,49 +1,18 @@
-import { useState } from "react";
-import QuestionModal from "../components/QuestionModal";
-
-export default function Questions({ questions = [], teams }) {
-  // `teams` can be {teamA: "Red", teamB: "Blue"} from your app state/settings.
-  const [selected, setSelected] = useState(null);
-  const [open, setOpen] = useState(false);
-
-  const handleOpen = (q) => { setSelected(q); setOpen(true); };
-  const handleClose = () => { setOpen(false); setSelected(null); };
-
-  return (
-    <div style={{ padding: 16 }}>
-      <h2>Questions</h2>
-
-      <div style={{ display: "grid", gap: 12 }}>
-        {questions.map((q) => (
-          <button
-            key={q.id}
-            style={cardBtn}
-            onClick={() => handleOpen(q)}
-          >
-            <div style={{ fontWeight: 600 }}>{q.title ?? `Question #${q.id}`}</div>
-            {q.category ? <div style={{ fontSize: 12, opacity: 0.7 }}>{q.category}</div> : null}
-          </button>
-        ))}
-      </div>
-
-      <QuestionModal
-        open={open}
-        onClose={handleClose}
-        question={selected}
-        teamA={teams?.teamA ?? "Team A"}
-        teamB={teams?.teamB ?? "Team B"}
-        defaultSeconds={60}
-      />
+<!doctype html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سين جيم • الرئيسية</title><link rel="stylesheet" href="/assets/style.css"></head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <nav class="tabs"><a class="tab active" href="/">الرئيسية</a><a class="tab" href="/packs">الحِزم</a><a class="tab" href="/questions">الأسئلة</a><a class="tab" href="/game">البدء</a><a class="tab" href="/settings">الإعدادات</a></nav>
+      <div class="spacer"></div>
+      <div class="brand">🎮 سين جيم</div>
     </div>
-  );
-}
-
-const cardBtn = {
-  textAlign: "left",
-  padding: 14,
-  borderRadius: 12,
-  border: "1px solid #eaeaea",
-  background: "#fff",
-  cursor: "pointer",
-  boxShadow: "0 4px 10px rgba(0,0,0,.03)"
-};
+  </header>
+<main class="container">
+  <div class="grid cols-2">
+    <div class="card"><h2>الحِزم</h2><p class="hint">إدارة الفئات والحِزم والأسئلة.</p><a class="btn primary" href="/packs">فتح صفحة الحِزم</a></div>
+    <div class="card"><h2>ابدأ اللعب</h2><p class="hint">اختر 6 فئات من الأسئلة التي قمت باستيرادها.</p><a class="btn" href="/game">بدء اللعبة</a></div>
+  </div>
+</main>
+</body></html>
