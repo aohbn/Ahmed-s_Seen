@@ -158,14 +158,22 @@ function renderSetup(){
   all.forEach(cat=>{
     const card=document.createElement("div"); card.className="catCard"+(selectedCats.includes(cat)?" active":"");
     const title=document.createElement("h3"); title.textContent=cat; card.appendChild(title);
-    const total=qs.filter(q=>q.category===cat).length; const meta=document.createElement("div"); meta.className="row";
-    const tag=document.createElement("span"); tag.className="tag"; tag.textContent="عدد الأسئلة: "+total; meta.appendChild(tag); card.appendChild(meta);
+    const meta=document.createElement("div"); meta.className="row";
+    const tag=document.createElement("span"); tag.className="tag";
+    // default tag value shows current playing pack
+    tag.textContent = "الحزمة: " + (((selectedPacks||{})[cat] && (packsByCategory(cat).find(p=>p.id===((selectedPacks||{})[cat]))||{}).name) || "من كل الحِزم");
+    meta.appendChild(tag); card.appendChild(meta);
     const drop=document.createElement("div"); drop.className="drop";
     const label=document.createElement("div"); label.textContent="اختر الحزمة لهذه الفئة:";
     const select=document.createElement("select"); select.className="input";
-    const packs=packsByCategory(cat); const optAny=document.createElement("option"); optAny.value=""; optAny.textContent="من كل الحزم (عدد: "+total+")"; select.appendChild(optAny);
-    packs.forEach(p=>{ const m=qs.filter(q=>q.category===cat && q.pack===p.id).length; const o=document.createElement("option"); o.value=p.id; o.textContent="حزمة: "+p.name+" (عدد: "+m+")"; select.appendChild(o); });
-    select.value=(selectedPacks||{})[cat]||""; select.onchange=()=>{ selectedPacks[cat]=select.value||""; setSelectedPacks(selectedPacks); };
+    const packs=packsByCategory(cat); const optAny=document.createElement("option"); optAny.value=""; optAny.textContent="من كل الحِزم"; select.appendChild(optAny);
+    packs.forEach(p=>{ const o=document.createElement("option"); o.value=p.id; o.textContent="حزمة: "+p.name; select.appendChild(o); });
+    select.value=(selectedPacks||{})[cat]||""; select.onchange=()=>{ selectedPacks[cat]=select.value||""; setSelectedPacks(selectedPacks);
+      // update the tag to show current pack name
+      const current = (selectedPacks||{})[cat];
+      const obj = packs.find(pp=>pp.id===current);
+      tag.textContent = "الحزمة: " + (obj? obj.name : "من كل الحِزم");
+    };
     drop.appendChild(label); drop.appendChild(select); card.appendChild(drop);
     card.onclick=(e)=>{ if(e.target===select) return; if(selectedCats.includes(cat)){ selectedCats=selectedCats.filter(x=>x!==cat); card.classList.remove("active"); } else if(selectedCats.length<6){ selectedCats.push(cat); card.classList.add("active"); } setSelectedCategories(selectedCats); document.getElementById("selCount").textContent=(selectedCats?.length||0)+"/6"; document.getElementById("startBtn").disabled=(selectedCats.length!==6); };
     grid.appendChild(card);
