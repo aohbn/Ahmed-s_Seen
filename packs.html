@@ -2,8 +2,10 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>سين جيم • الحِزم</title><link rel="stylesheet" href="/assets/style.css">
 <script type="module">
-  import { listPacks, listCategories, packsByCategory, questionsByPack, addPack, deletePack, deleteCategory, deleteQuestion, deleteAll, exportAll, importAllFromFile, store } from "/assets/app.js";
+  import { ensureSharedLoaded, listPacks, listCategories, packsByCategory, questionsByPack, addPack, deletePack, deleteCategory, deleteQuestion, deleteAll, exportAll, importAllFromFile, store } from "/assets/app.js";
   let selectedCat = null;
+
+  async function ready(){ await ensureSharedLoaded(); }
 
   function renderCategories(){
     const wrap = document.getElementById('catList'); wrap.innerHTML='';
@@ -52,7 +54,8 @@
     renderCategories();
   }
 
-  document.addEventListener('DOMContentLoaded',()=>{
+  document.addEventListener('DOMContentLoaded', async ()=>{
+    await ready();
     renderCategories();
     // Import / Export
     document.getElementById('exportBtn').onclick = exportAll;

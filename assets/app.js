@@ -1,4 +1,3 @@
-
 export const SETTINGS_KEY   = "sj:settings";
 export const QUESTIONS_KEY  = "sj:questions";
 export const PACKS_KEY      = "sj:packs";
@@ -151,3 +150,23 @@ function pickAnswer(o){ return o.a??o.A??o.answer??o.correct??o.ans??o.answerTex
 function pickImage(o){ return o.img??o.image??o.imageUrl??o.imageURL??o.imgUrl??o.photo??null; }
 
 function slugify(s){ return String(s).toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g,'-').replace(/(^-|-$)/g,''); }
+
+// ---------- NEW: ensure shared packs are loaded from /assets/packs/packs.json ----------
+/**
+ * Loads shared packs/questions from /assets/packs/packs.json into localStorage
+ * IFF localStorage is empty. Safe to call multiple times.
+ * Returns a Promise that resolves when done.
+ */
+export async function ensureSharedLoaded(){
+  const hasPacks = Array.isArray(store.get(PACKS_KEY,null)) && store.get(PACKS_KEY,[]).length>0
+  const hasQs    = Array.isArray(store.get(QUESTIONS_KEY,null)) && store.get(QUESTIONS_KEY,[]).length>0
+  if (hasPacks && hasQs) return;
+  try{
+    const res = await fetch('/assets/packs/packs.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const conv = normalize(data);
+    if (Array.isArray(conv.packs) && conv.packs.length) store.set(PACKS_KEY, conv.packs);
+    if (Array.isArray(conv.questions) && conv.questions.length) store.set(QUESTIONS_KEY, conv.questions);
+  }catch(_e){ /* ignore */ }
+}
