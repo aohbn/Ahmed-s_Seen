@@ -194,6 +194,9 @@ window.addEventListener("DOMContentLoaded",()=>{
 // Minimal DOMContentLoaded for board page
 window.addEventListener("DOMContentLoaded",()=>{ 
   (window.__sharedLoad||Promise.resolve()).then(()=>{ 
+    // hydrate selections
+    selectedCats = getSelectedCategories();
+    selectedPacks = getSelectedPacks();
     renderScore();
     buildBoard();
     renderBoard();
