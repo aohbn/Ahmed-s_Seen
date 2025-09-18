@@ -27,29 +27,23 @@
 </style>
 </head><body>
 <main class="container">
-  <div class="card">
-    <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap">
-      <div class="row" style="gap:16px">
-        <span class="tag">الدور: <b id="turn">—</b></span>
-        <button class="btn" id="swapTurn" type="button">تبديل الدور</button>
-      </div>
-      <div class="row" style="gap:16px;flex-wrap:wrap">
-        <span class="tag"><b id="nameA">الفريق 1</b> • <span id="scoreA">0</span></span>
-        <div class="row" style="gap:6px"><button class="btn" id="addA" type="button">+100</button><button class="btn" id="subA" type="button">-100</button></div>
-        <span class="tag"><b id="nameB">الفريق 2</b> • <span id="scoreB">0</span></span>
-        <div class="row" style="gap:6px"><button class="btn" id="addB" type="button">+100</button><button class="btn" id="subB" type="button">-100</button></div>
-        <button class="btn danger" id="resetScore" type="button">تصفير النقاط</button>
-      </div>
-    </div>
-  </div>
-
   <div id="setup" class="card">
     <h2 style="margin-top:0">اختر 6 فئات</h2>
     <div id="catsGrid" class="catsGrid"></div>
     <div class="row" style="justify-content:space-between;margin-top:12px">
-      <span class="tag" id="selCount">0/6</span>
-      <button class="btn primary" id="startBtn" type="button" disabled>بدء اللعبة</button>
-    </div>
+  <span class="tag" id="selCount">0/6</span>
+</div>
+<div class="card" style="margin-top:12px">
+  <h3 style="margin-top:0">أسماء الفرق</h3>
+  <div class="row" style="gap:12px; flex-wrap:wrap">
+    <label>الفريق 1</label>
+    <input id="teamAInput" type="text" placeholder="الفريق 1" style="padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:#0f1930;color:#fff;">
+    <label>الفريق 2</label>
+    <input id="teamBInput" type="text" placeholder="الفريق 2" style="padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:#0f1930;color:#fff;">
+    <div class="spacer"></div>
+    <button class="btn primary" id="startBtn" type="button" disabled>بدء اللعبة</button>
+  </div>
+</div>
     <div class="hint" id="noData" style="display:none">لا توجد أسئلة بعد — استورد من صفحة الحِزم.</div>
   </div>
 </main>
@@ -144,15 +138,24 @@ window.addEventListener("DOMContentLoaded",()=>{
   (window.__sharedLoad||Promise.resolve()).then(()=>{ 
     renderScore();
     renderSetup();
+    // Prefill team names and bind saving
+    try{
+      const n = getTeamNames();
+      const a = document.getElementById('teamAInput');
+      const b = document.getElementById('teamBInput');
+      if(a) a.value = n.teamA||'الفريق 1';
+      if(b) b.value = n.teamB||'الفريق 2';
+      if(a) a.addEventListener('input', ()=> setTeamNames({teamA:a.value, teamB:(document.getElementById('teamBInput')||{}).value||''}));
+      if(b) b.addEventListener('input', ()=> setTeamNames({teamA:(document.getElementById('teamAInput')||{}).value||'', teamB:b.value}));
+    }catch(_e){}
+
     const start = document.getElementById("startBtn");
     if (start) start.onclick=(e)=>{ try{e?.preventDefault?.();}catch(_e){}
       const ok = selectedCats && selectedCats.length===6;
       if(!ok) return;
       window.location.href = "/board.html";
     };
-    const st = document.getElementById("swapTurn"); if (st) st.onclick=switchTurn;
-    const rs = document.getElementById("resetScore"); if (rs) rs.onclick=()=>{ setScores({A:0,B:0,turn:"A", used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
-  });
+          });
 });
 </script>
 </body></html>
