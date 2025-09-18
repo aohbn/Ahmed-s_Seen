@@ -54,7 +54,15 @@
 
 // ---- storage & schema (no external files) -----
 const K={ SETTINGS:"sj:settings", PACKS:"sj:packs", QUESTIONS:"sj:questions", SELECTED_CATS:"sj:selectedCats", SELECTED_PACKS:"sj:selectedPacks", TEAMS:"sj:teamNames", SCORE:"sj:scores" };
-const store={ get:(k,f)=>{ try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}}, set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)) };
+const store={ get:(k,f)=>{ try{
+      const n = getTeamNames();
+      const a = document.getElementById('teamAInput');
+      const b = document.getElementById('teamBInput');
+      if(a) a.value = n.teamA || 'الفريق 1';
+      if(b) b.value = n.teamB || 'الفريق 2';
+      if(a) a.addEventListener('input', ()=> setTeamNames({ teamA: a.value, teamB: (document.getElementById('teamBInput')||{}).value || '' }));
+      if(b) b.addEventListener('input', ()=> setTeamNames({ teamA: (document.getElementById('teamAInput')||{}).value || '', teamB: b.value }));
+    }catch(_e){}catch{return f}}, set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)) };
 function defaults(){
   if(!store.get(K.SETTINGS,null)) store.set(K.SETTINGS,{roundTime:60, stealTime:10});
   if(!store.get(K.PACKS,null)) store.set(K.PACKS,[]);
