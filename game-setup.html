@@ -1,0 +1,158 @@
+<!doctype html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سين جيم • الإعداد</title>
+<style>
+:root{--bg:#0b1220;--card:#0e172e;--line:#2b3550;--tile1:#1c243a;--tile2:#0d1424;--text:#e7e7ea;--accent:#6c8cff}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Segoe UI,Tahoma;direction:rtl;background:var(--bg);color:var(--text)}
+.container{max-width:1100px;margin:16px auto;padding:12px}
+.row{display:flex;gap:10px;align-items:center} .hint{opacity:.8}
+.btn{padding:8px 12px;border-radius:10px;border:1px solid #445;background:#1c2539;color:#fff;cursor:pointer}
+.btn.primary{background:#5b7cff} .btn.danger{background:#8b2d2d}
+.tag{background:#1b2234;padding:6px 10px;border-radius:999px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+.board{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.tile{display:grid;place-items:center;min-height:84px;border-radius:16px;background:linear-gradient(180deg,var(--tile1),var(--tile2));border:1px solid var(--line);font-weight:700;cursor:pointer}
+.tile.disabled{opacity:.35;cursor:not-allowed}
+/* Big category cards */
+.catsGrid{display:grid;gap:14px;grid-template-columns:repeat(3,1fr)}
+.catCard{background:linear-gradient(180deg,var(--tile1),var(--tile2));border:1px solid var(--line);border-radius:16px;padding:14px;cursor:pointer;min-height:120px;display:flex;flex-direction:column;justify-content:space-between}
+.catCard.active{outline:2px solid var(--accent)} .catCard h3{margin:0 0 8px 0;font-size:18px}
+.catCard .drop{display:none;margin-top:8px} .catCard.active .drop{display:block} .catCard select{width:100%}
+@media(max-width:900px){ .catsGrid{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:640px){ .catsGrid{grid-template-columns:1fr} }
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;place-items:center;z-index:999}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;max-width:980px;width:92vw}
+.input{background:#0d1424;color:var(--text);border:1px solid #28324a;border-radius:10px;padding:8px 10px}
+.thumb-img{max-height:22vh;max-width:100%;object-fit:contain;border-radius:12px;border:1px solid #e2e8f0;cursor:zoom-in;margin-top:8px}
+</style>
+</head><body>
+<main class="container">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap">
+      <div class="row" style="gap:16px">
+        <span class="tag">الدور: <b id="turn">—</b></span>
+        <button class="btn" id="swapTurn" type="button">تبديل الدور</button>
+      </div>
+      <div class="row" style="gap:16px;flex-wrap:wrap">
+        <span class="tag"><b id="nameA">الفريق 1</b> • <span id="scoreA">0</span></span>
+        <div class="row" style="gap:6px"><button class="btn" id="addA" type="button">+100</button><button class="btn" id="subA" type="button">-100</button></div>
+        <span class="tag"><b id="nameB">الفريق 2</b> • <span id="scoreB">0</span></span>
+        <div class="row" style="gap:6px"><button class="btn" id="addB" type="button">+100</button><button class="btn" id="subB" type="button">-100</button></div>
+        <button class="btn danger" id="resetScore" type="button">تصفير النقاط</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="setup" class="card">
+    <h2 style="margin-top:0">اختر 6 فئات</h2>
+    <div id="catsGrid" class="catsGrid"></div>
+    <div class="row" style="justify-content:space-between;margin-top:12px">
+      <span class="tag" id="selCount">0/6</span>
+      <button class="btn primary" id="startBtn" type="button" disabled>بدء اللعبة</button>
+    </div>
+    <div class="hint" id="noData" style="display:none">لا توجد أسئلة بعد — استورد من صفحة الحِزم.</div>
+  </div>
+</main>
+
+<footer class="container"><span>سين جيم • الإعداد</span></footer>
+
+<script>
+
+// ---- storage & schema (no external files) -----
+const K={ SETTINGS:"sj:settings", PACKS:"sj:packs", QUESTIONS:"sj:questions", SELECTED_CATS:"sj:selectedCats", SELECTED_PACKS:"sj:selectedPacks", TEAMS:"sj:teamNames", SCORE:"sj:scores" };
+const store={ get:(k,f)=>{ try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}}, set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)) };
+function defaults(){
+  if(!store.get(K.SETTINGS,null)) store.set(K.SETTINGS,{roundTime:60, stealTime:10});
+  if(!store.get(K.PACKS,null)) store.set(K.PACKS,[]);
+  if(!store.get(K.QUESTIONS,null)) store.set(K.QUESTIONS,[]);
+  if(!store.get(K.SELECTED_CATS,null)) store.set(K.SELECTED_CATS,[]);
+  if(!store.get(K.SELECTED_PACKS,null)) store.set(K.SELECTED_PACKS,{});
+  if(!store.get(K.TEAMS,null)) store.set(K.TEAMS,{teamA:"الفريق 1", teamB:"الفريق 2"});
+  if(!store.get(K.SCORE,null)) store.set(K.SCORE,{A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}});
+}
+defaults();
+
+// ---- NEW: preload shared packs from /assets/packs/packs.json if local empty -----
+function normalizeQ(q){ return { id:q.id||("q_"+Math.random().toString(36).slice(2)), pack:q.pack||"default", category:q.category||"غير مصنفة", level:Number(q.level||100), q:String(q.q||"").trim(), a:String(q.a||"").trim(), img:q.img||null }; }
+async function preloadShared(){
+  const hasPacks = Array.isArray(store.get(K.PACKS,null)) && store.get(K.PACKS,[]).length>0;
+  const hasQs    = Array.isArray(store.get(K.QUESTIONS,null)) && store.get(K.QUESTIONS,[]).length>0;
+  if (hasPacks && hasQs) return;
+  try{
+    const res = await fetch('/assets/packs/packs.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const packs = Array.isArray(data?.packs) ? data.packs.map(p=>({id:p.id||("pack-"+Math.random().toString(36).slice(2,6)), name:p.name||"بدون اسم", category:p.category||p.cat||"غير مصنفة"})) : [];
+    const questions = Array.isArray(data?.questions) ? data.questions.map(normalizeQ) : [];
+    if (packs.length) store.set(K.PACKS, packs);
+    if (questions.length) store.set(K.QUESTIONS, questions);
+  }catch(_e){ /* ignore */ }
+}
+window.__sharedLoad = preloadShared();
+
+const listPacks=()=>store.get(K.PACKS,[]);
+const listQuestions=()=>store.get(K.QUESTIONS,[]);
+const packsByCategory=(c)=>listPacks().filter(p=>(p.category||"غير مصنفة")===c);
+const listCategories=()=>{ const p=Array.from(new Set(listPacks().map(p=>p.category||"غير مصنفة"))); return p.length?p:Array.from(new Set(listQuestions().map(q=>q.category||"غير مصنفة"))); };
+const getSelectedCategories=()=>store.get(K.SELECTED_CATS,[]);
+const setSelectedCategories=(v)=>store.set(K.SELECTED_CATS,v||[]);
+const getSelectedPacks=()=>store.get(K.SELECTED_PACKS,{});
+const setSelectedPacks=(m)=>store.set(K.SELECTED_PACKS,m||{});
+const getScores=()=>store.get(K.SCORE,{A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}});
+const setScores=(s)=>store.set(K.SCORE,s);
+const getTeamNames=()=>store.get(K.TEAMS,{teamA:"الفريق 1", teamB:"الفريق 2"});
+
+// ---- page logic -----
+let selectedCats=[]; let selectedPacks=getSelectedPacks(); let boardQuestions={};
+
+function renderScore(){ const n=getTeamNames(); const s=getScores(); document.getElementById("nameA").textContent=n.teamA; document.getElementById("nameB").textContent=n.teamB; document.getElementById("scoreA").textContent=s.A; document.getElementById("scoreB").textContent=s.B; document.getElementById("turn").textContent=(s.turn==="A"?n.teamA:n.teamB); _bindScoreAdjust(); }
+function addPoints(team,pts){ const s=getScores(); s[team]+=pts; if(s[team]<0)s[team]=0; setScores(s); renderScore(); }
+function switchTurn(){ const s=getScores(); s.turn=(s.turn==="A"?"B":"A"); setScores(s); renderScore(); }
+function _bindScoreAdjust(){ ["addA","subA","addB","subB"].forEach(id=>{ const el=document.getElementById(id); if(!el._bound){ el._bound=true; } }); document.getElementById("addA").onclick=()=>addPoints("A",100); document.getElementById("subA").onclick=()=>addPoints("A",-100); document.getElementById("addB").onclick=()=>addPoints("B",100); document.getElementById("subB").onclick=()=>addPoints("B",-100); }
+
+
+
+// --- Setup-only functions (unchanged from original) ---
+function renderSetup(){
+  const all=listCategories(); const grid=document.getElementById("catsGrid"); grid.innerHTML="";
+  const saved=getSelectedCategories().filter(c=>all.includes(c)); selectedCats=saved.length?saved.slice(0,6):all.slice(0,6);
+  const qs=listQuestions();
+  all.forEach(cat=>{
+    const card=document.createElement("div"); card.className="catCard"+(selectedCats.includes(cat)?" active":"");
+    const title=document.createElement("h3"); title.textContent=cat; card.appendChild(title);
+    const total=qs.filter(q=>q.category===cat).length; const meta=document.createElement("div"); meta.className="row";
+    const tag=document.createElement("span"); tag.className="tag"; tag.textContent="عدد الأسئلة: "+total; meta.appendChild(tag); card.appendChild(meta);
+    const drop=document.createElement("div"); drop.className="drop";
+    const label=document.createElement("div"); label.textContent="اختر الحزمة لهذه الفئة:";
+    const select=document.createElement("select"); select.className="input";
+    const packs=packsByCategory(cat); const optAny=document.createElement("option"); optAny.value=""; optAny.textContent="من كل الحزم (عدد: "+total+")"; select.appendChild(optAny);
+    packs.forEach(p=>{ const m=qs.filter(q=>q.category===cat && q.pack===p.id).length; const o=document.createElement("option"); o.value=p.id; o.textContent="حزمة: "+p.name+" (عدد: "+m+")"; select.appendChild(o); });
+    select.value=(selectedPacks||{})[cat]||""; select.onchange=()=>{ selectedPacks[cat]=select.value||""; setSelectedPacks(selectedPacks); };
+    drop.appendChild(label); drop.appendChild(select); card.appendChild(drop);
+    card.onclick=(e)=>{ if(e.target===select) return; if(selectedCats.includes(cat)){ selectedCats=selectedCats.filter(x=>x!==cat); card.classList.remove("active"); } else if(selectedCats.length<6){ selectedCats.push(cat); card.classList.add("active"); } setSelectedCategories(selectedCats); document.getElementById("selCount").textContent=(selectedCats?.length||0)+"/6"; document.getElementById("startBtn").disabled=(selectedCats.length!==6); };
+    grid.appendChild(card);
+  });
+  document.getElementById("selCount").textContent=(selectedCats?.length||0)+"/6";
+  document.getElementById("startBtn").disabled=(selectedCats.length!==6);
+  document.getElementById("noData").style.display=all.length?"none":"block";
+}
+
+
+
+// Minimal DOMContentLoaded for setup page
+window.addEventListener("DOMContentLoaded",()=>{ 
+  (window.__sharedLoad||Promise.resolve()).then(()=>{ 
+    renderScore();
+    renderSetup();
+    const start = document.getElementById("startBtn");
+    if (start) start.onclick=(e)=>{ try{e?.preventDefault?.();}catch(_e){}
+      const ok = selectedCats && selectedCats.length===6;
+      if(!ok) return;
+      window.location.href = "/board.html";
+    };
+    const st = document.getElementById("swapTurn"); if (st) st.onclick=switchTurn;
+    const rs = document.getElementById("resetScore"); if (rs) rs.onclick=()=>{ setScores({A:0,B:0,turn:"A", used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
+  });
+});
+</script>
+</body></html>

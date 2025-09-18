@@ -1,0 +1,205 @@
+<!doctype html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سين جيم • اللوحة</title>
+<style>
+:root{--bg:#0b1220;--card:#0e172e;--line:#2b3550;--tile1:#1c243a;--tile2:#0d1424;--text:#e7e7ea;--accent:#6c8cff}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Segoe UI,Tahoma;direction:rtl;background:var(--bg);color:var(--text)}
+.container{max-width:1100px;margin:16px auto;padding:12px}
+.row{display:flex;gap:10px;align-items:center} .hint{opacity:.8}
+.btn{padding:8px 12px;border-radius:10px;border:1px solid #445;background:#1c2539;color:#fff;cursor:pointer}
+.btn.primary{background:#5b7cff} .btn.danger{background:#8b2d2d}
+.tag{background:#1b2234;padding:6px 10px;border-radius:999px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+.board{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.tile{display:grid;place-items:center;min-height:84px;border-radius:16px;background:linear-gradient(180deg,var(--tile1),var(--tile2));border:1px solid var(--line);font-weight:700;cursor:pointer}
+.tile.disabled{opacity:.35;cursor:not-allowed}
+/* Big category cards */
+.catsGrid{display:grid;gap:14px;grid-template-columns:repeat(3,1fr)}
+.catCard{background:linear-gradient(180deg,var(--tile1),var(--tile2));border:1px solid var(--line);border-radius:16px;padding:14px;cursor:pointer;min-height:120px;display:flex;flex-direction:column;justify-content:space-between}
+.catCard.active{outline:2px solid var(--accent)} .catCard h3{margin:0 0 8px 0;font-size:18px}
+.catCard .drop{display:none;margin-top:8px} .catCard.active .drop{display:block} .catCard select{width:100%}
+@media(max-width:900px){ .catsGrid{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:640px){ .catsGrid{grid-template-columns:1fr} }
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;place-items:center;z-index:999}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;max-width:980px;width:92vw}
+.input{background:#0d1424;color:var(--text);border:1px solid #28324a;border-radius:10px;padding:8px 10px}
+.thumb-img{max-height:22vh;max-width:100%;object-fit:contain;border-radius:12px;border:1px solid #e2e8f0;cursor:zoom-in;margin-top:8px}
+</style>
+</head><body>
+<main class="container">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap">
+      <div class="row" style="gap:16px">
+        <span class="tag">الدور: <b id="turn">—</b></span>
+        <button class="btn" id="swapTurn" type="button">تبديل الدور</button>
+      </div>
+      <div class="row" style="gap:16px;flex-wrap:wrap">
+        <span class="tag"><b id="nameA">الفريق 1</b> • <span id="scoreA">0</span></span>
+        <div class="row" style="gap:6px"><button class="btn" id="addA" type="button">+100</button><button class="btn" id="subA" type="button">-100</button></div>
+        <span class="tag"><b id="nameB">الفريق 2</b> • <span id="scoreB">0</span></span>
+        <div class="row" style="gap:6px"><button class="btn" id="addB" type="button">+100</button><button class="btn" id="subB" type="button">-100</button></div>
+        <button class="btn danger" id="resetScore" type="button">تصفير النقاط</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="play" style="display:block">
+    <div class="card">
+      <h2>لوحة الأسئلة</h2>
+      <div id="board"></div>
+    </div>
+  </div>
+</main>
+
+<!-- Reuse the exact Question Modal + Image Viewer + footer from original -->
+
+<div class="backdrop" id="modal" style="display:none">
+  <div class="modal">
+    <div class="row" style="justify-content:space-between">
+      <h3 style="margin:0"><span id="mTitle">—</span><span id="mStage"></span></h3>
+      <button class="btn" id="closeM" type="button">إغلاق ✕</button>
+    </div>
+    <div class="row" style="justify-content:space-between;margin:6px 0;flex-wrap:wrap">
+      <div class="row">
+        <span class="tag" id="timer">00:60</span>
+        <button class="btn" id="startTimer" type="button">بدء</button>
+        <button class="btn" id="pauseTimer" type="button">إيقاف</button>
+        <button class="btn" id="resetTimer" type="button">إعادة</button>
+        <button class="btn" id="switchTurnTop" type="button">تبديل الدور (10ث)</button>
+      </div>
+      <span class="tag" id="imgTag" style="display:none">📷 يوجد صورة</span>
+    </div>
+    <div style="margin-top:6px;font-weight:800" id="mQ">—</div>
+    <img id="mImg" class="thumb-img" style="display:none" />
+    <div class="hint" style="margin-top:8px"><b>الإجابة:</b> <span id="mA" style="display:none"></span></div>
+    <div class="row" style="justify-content:center;margin-top:8px">
+      <button class="btn" id="showA" type="button">إظهار/إخفاء الإجابة</button>
+      <button class="btn" id="openImg" type="button" style="margin-inline-start:8px">عرض الصورة في نافذة</button>
+    </div>
+
+    <div class="row" style="justify-content:space-between;margin-top:8px;flex-wrap:wrap">
+      <span class="tag">وسائل مساعدة (مرة واحدة لكل فريق):</span>
+      <div class="row">
+        <button class="btn" id="stealBtn" type="button">سرقة السؤال (الفريق الآخر)</button>
+        <button class="btn" id="twoTries" type="button">إجابتان</button>
+        <button class="btn" id="doublePts" type="button">×2 النقاط</button>
+        <button class="btn" id="plus20" type="button">+20ث</button>
+      </div>
+    </div>
+
+    <div class="row" style="justify-content:space-between;margin-top:10px;flex-wrap:wrap">
+      <span class="tag">تحديد الفائز بالسؤال:</span>
+      <div class="row">
+        <button class="btn primary" id="winCur" type="button">الفائز: الفريق الحالي</button>
+        <button class="btn" id="winOth" type="button">الفائز: الفريق الآخر</button>
+        <button class="btn danger" id="winNone" type="button">لا أحد</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Image Viewer -->
+<div class="backdrop" id="imgViewer" style="display:none">
+  <div class="modal">
+    <div class="row" style="justify-content:space-between"><h3>عرض الصورة</h3><button class="btn" id="closeImg" type="button">إغلاق ✕</button></div>
+    <div style="display:grid;place-items:center"><img id="viewerImg" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:12px;border:1px solid #e2e8f0"/></div>
+  </div>
+</div>
+
+<footer class="container"><span>سين جيم • البدء</span></footer>
+
+<script>
+
+// ---- storage & schema (no external files) -----
+const K={ SETTINGS:"sj:settings", PACKS:"sj:packs", QUESTIONS:"sj:questions", SELECTED_CATS:"sj:selectedCats", SELECTED_PACKS:"sj:selectedPacks", TEAMS:"sj:teamNames", SCORE:"sj:scores" };
+const store={ get:(k,f)=>{ try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}}, set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)) };
+function defaults(){
+  if(!store.get(K.SETTINGS,null)) store.set(K.SETTINGS,{roundTime:60, stealTime:10});
+  if(!store.get(K.PACKS,null)) store.set(K.PACKS,[]);
+  if(!store.get(K.QUESTIONS,null)) store.set(K.QUESTIONS,[]);
+  if(!store.get(K.SELECTED_CATS,null)) store.set(K.SELECTED_CATS,[]);
+  if(!store.get(K.SELECTED_PACKS,null)) store.set(K.SELECTED_PACKS,{});
+  if(!store.get(K.TEAMS,null)) store.set(K.TEAMS,{teamA:"الفريق 1", teamB:"الفريق 2"});
+  if(!store.get(K.SCORE,null)) store.set(K.SCORE,{A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}});
+}
+defaults();
+
+// ---- NEW: preload shared packs from /assets/packs/packs.json if local empty -----
+function normalizeQ(q){ return { id:q.id||("q_"+Math.random().toString(36).slice(2)), pack:q.pack||"default", category:q.category||"غير مصنفة", level:Number(q.level||100), q:String(q.q||"").trim(), a:String(q.a||"").trim(), img:q.img||null }; }
+async function preloadShared(){
+  const hasPacks = Array.isArray(store.get(K.PACKS,null)) && store.get(K.PACKS,[]).length>0;
+  const hasQs    = Array.isArray(store.get(K.QUESTIONS,null)) && store.get(K.QUESTIONS,[]).length>0;
+  if (hasPacks && hasQs) return;
+  try{
+    const res = await fetch('/assets/packs/packs.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const packs = Array.isArray(data?.packs) ? data.packs.map(p=>({id:p.id||("pack-"+Math.random().toString(36).slice(2,6)), name:p.name||"بدون اسم", category:p.category||p.cat||"غير مصنفة"})) : [];
+    const questions = Array.isArray(data?.questions) ? data.questions.map(normalizeQ) : [];
+    if (packs.length) store.set(K.PACKS, packs);
+    if (questions.length) store.set(K.QUESTIONS, questions);
+  }catch(_e){ /* ignore */ }
+}
+window.__sharedLoad = preloadShared();
+
+const listPacks=()=>store.get(K.PACKS,[]);
+const listQuestions=()=>store.get(K.QUESTIONS,[]);
+const packsByCategory=(c)=>listPacks().filter(p=>(p.category||"غير مصنفة")===c);
+const listCategories=()=>{ const p=Array.from(new Set(listPacks().map(p=>p.category||"غير مصنفة"))); return p.length?p:Array.from(new Set(listQuestions().map(q=>q.category||"غير مصنفة"))); };
+const getSelectedCategories=()=>store.get(K.SELECTED_CATS,[]);
+const setSelectedCategories=(v)=>store.set(K.SELECTED_CATS,v||[]);
+const getSelectedPacks=()=>store.get(K.SELECTED_PACKS,{});
+const setSelectedPacks=(m)=>store.set(K.SELECTED_PACKS,m||{});
+const getScores=()=>store.get(K.SCORE,{A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}});
+const setScores=(s)=>store.set(K.SCORE,s);
+const getTeamNames=()=>store.get(K.TEAMS,{teamA:"الفريق 1", teamB:"الفريق 2"});
+
+// ---- page logic -----
+let selectedCats=[]; let selectedPacks=getSelectedPacks(); let boardQuestions={};
+
+function renderScore(){ const n=getTeamNames(); const s=getScores(); document.getElementById("nameA").textContent=n.teamA; document.getElementById("nameB").textContent=n.teamB; document.getElementById("scoreA").textContent=s.A; document.getElementById("scoreB").textContent=s.B; document.getElementById("turn").textContent=(s.turn==="A"?n.teamA:n.teamB); _bindScoreAdjust(); }
+function addPoints(team,pts){ const s=getScores(); s[team]+=pts; if(s[team]<0)s[team]=0; setScores(s); renderScore(); }
+function switchTurn(){ const s=getScores(); s.turn=(s.turn==="A"?"B":"A"); setScores(s); renderScore(); }
+function _bindScoreAdjust(){ ["addA","subA","addB","subB"].forEach(id=>{ const el=document.getElementById(id); if(!el._bound){ el._bound=true; } }); document.getElementById("addA").onclick=()=>addPoints("A",100); document.getElementById("subA").onclick=()=>addPoints("A",-100); document.getElementById("addB").onclick=()=>addPoints("B",100); document.getElementById("subB").onclick=()=>addPoints("B",-100); }
+
+
+
+// --- Board-only functions (unchanged from original) ---
+function buildBoard(){ const qs=listQuestions(); boardQuestions={}; selectedCats.forEach(cat=> boardQuestions[cat]={100:[],200:[],300:[],400:[]}); [100,200,300,400].forEach(level=>{ selectedCats.forEach(cat=>{ const chosen=(selectedPacks||{})[cat]||""; const bucket=qs.filter(q=> q.category===cat && Number(q.level)===level && (!chosen || q.pack===chosen)); boardQuestions[cat][level]=bucket.slice(); }); }); }
+function renderBoard(){ const board=document.getElementById("board"); board.innerHTML=""; const head=document.createElement("div"); head.style.display="grid"; head.style.gridTemplateColumns="repeat(6,1fr)"; head.style.gap="12px"; selectedCats.forEach(cat=>{ const h=document.createElement("div"); h.className="tile"; h.style.minHeight="60px"; h.textContent=cat; head.appendChild(h); }); board.appendChild(head); const levels=[100,100,200,200,300,300,400]; levels.forEach(level=>{ const row=document.createElement("div"); row.className="board"; selectedCats.forEach(cat=>{ const pool=boardQuestions[cat][level]||[]; let q=null; if(pool.length){ q=pool.splice(Math.floor(Math.random()*pool.length),1)[0]; } const t=document.createElement("div"); t.className="tile"; t.textContent=level; if(!q) t.classList.add("disabled"); else t.onclick=()=>openModal(q,cat,level,t); row.appendChild(t); }); board.appendChild(row); }); }
+
+// Modal + lifelines
+let timer=null, timeLeft=60, stage="regular"; let lifeline={double:false,two:false};
+function updT(){ document.getElementById("timer").textContent=String(Math.floor(timeLeft/60)).padStart(2,"0")+":"+String(timeLeft%60).padStart(2,"0"); }
+function startT(){ stopT(); timer=setInterval(()=>{ if(timeLeft<=0){ stopT(); onTimeUp(); } else { timeLeft--; updT(); } },1000); }
+function stopT(){ if(timer){ clearInterval(timer); timer=null; } }
+function onTimeUp(){ if(stage==="regular") toSteal(); }
+function toSteal(){ if(stage==="steal") return; const names=getTeamNames(); const s=getScores(); stage="steal"; s.turn=(s.turn==="A"?"B":"A"); setScores(s); renderScore(); timeLeft=10; updT(); document.getElementById("mStage").textContent=" — السرقة"; refreshLifelineRow(); }
+function plus20(){ timeLeft+=20; updT(); }
+function refreshLifelineRow(){ const s=getScores(); const cur=s.turn; const oth=(cur==="A"?"B":"A"); const used=s.used; document.getElementById("twoTries").disabled=!!used[cur].two; document.getElementById("doublePts").disabled=!!used[cur].double; document.getElementById("plus20").disabled=!!used[cur].plus20; document.getElementById("stealBtn").disabled=!!used[oth].steal || stage==="steal"; }
+function openModal(q,cat,level,tile){ const names=getTeamNames(); const s=getScores(); const m=document.getElementById("modal"); m.style.display="grid"; stage="regular"; lifeline={double:false,two:false}; timeLeft=60; updT(); document.getElementById("mTitle").textContent=cat+" • "+level; document.getElementById("mStage").textContent=" — الدور: "+(s.turn==="A"?names.teamA:names.teamB); document.getElementById("mQ").textContent=q.q||"—"; document.getElementById("mA").textContent=q.a||""; document.getElementById("mA").style.display="none"; const img=document.getElementById("mImg"); const imgBtn=document.getElementById("openImg"); const imgTag=document.getElementById("imgTag"); const vwrap=document.getElementById("imgViewer"); const vimg=document.getElementById("viewerImg"); if(q.img&&String(q.img).length>3){ img.src=q.img; img.style.display="block"; imgTag.style.display="inline-flex"; imgBtn.style.display="inline-block"; img.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; }; imgBtn.onclick=()=>{ vimg.src=q.img; vwrap.style.display="grid"; }; }else{ img.removeAttribute("src"); img.style.display="none"; imgTag.style.display="none"; imgBtn.style.display="none"; } document.getElementById("closeImg").onclick=()=>{ document.getElementById("imgViewer").style.display="none"; }; document.getElementById("showA").onclick=()=>{ const el=document.getElementById("mA"); el.style.display=(el.style.display==="none"?"block":"none"); }; document.getElementById("startTimer").onclick=startT; document.getElementById("pauseTimer").onclick=stopT; document.getElementById("resetTimer").onclick=()=>{ stopT(); timeLeft=(stage==="steal"?10:60); updT(); }; document.getElementById("switchTurnTop").onclick=toSteal; document.getElementById("plus20").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].plus20) return; plus20(); s.used[cur].plus20=true; setScores(s); refreshLifelineRow(); }; document.getElementById("doublePts").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].double) return; lifeline.double=true; s.used[cur].double=true; setScores(s); document.getElementById("doublePts").classList.add("primary"); refreshLifelineRow(); }; document.getElementById("twoTries").onclick=()=>{ const s=getScores(); const cur=s.turn; if(s.used[cur].two) return; lifeline.two=true; s.used[cur].two=true; setScores(s); document.getElementById("twoTries").classList.add("primary"); refreshLifelineRow(); }; document.getElementById("stealBtn").onclick=()=>{ const s=getScores(); const oth=(s.turn==="A"?"B":"A"); if(s.used[oth].steal||stage==="steal") return; s.used[oth].steal=true; s.turn=oth; setScores(s); renderScore(); stage="regular"; document.getElementById("mStage").textContent=" — الدور: "+(oth==="A"?names.teamA:names.teamB)+" (سرقة)"; refreshLifelineRow(); }; document.getElementById("closeM").onclick=()=>{ stopT(); m.style.display="none"; }; const award=(team)=>{ const pts=lifeline.double? level*2 : level; addPoints(team,pts); switchTurn(); stopT(); m.style.display="none"; }; document.getElementById("winCur").onclick=()=>award(getScores().turn); document.getElementById("winOth").onclick=()=>award(getScores().turn==="A"?"B":"A"); document.getElementById("winNone").onclick=()=>{ switchTurn(); stopT(); m.style.display="none"; }; tile.classList.add("disabled"); tile.onclick=null; refreshLifelineRow(); startT(); }
+
+window.addEventListener("DOMContentLoaded",()=>{
+  // ensure shared data loaded before we build UI
+  (window.__sharedLoad||Promise.resolve()).then(()=>{
+    renderScore();
+    renderSetup();
+    document.getElementById("startBtn").onclick=(e)=>{ try{ e?.preventDefault(); buildBoard(); renderBoard(); document.getElementById("setup").style.display="none"; document.getElementById("play").style.display="block"; }catch(err){ console.error("Start error",err); alert("حدث خطأ أثناء بدء اللعبة. تأكد من وجود أسئلة للفئات المختارة."); } };
+    document.getElementById("swapTurn").onclick=switchTurn;
+    document.getElementById("resetScore").onclick=()=>{ setScores({A:0,B:0,turn:"A",used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
+  });
+});
+
+
+// Minimal DOMContentLoaded for board page
+window.addEventListener("DOMContentLoaded",()=>{ 
+  (window.__sharedLoad||Promise.resolve()).then(()=>{ 
+    renderScore();
+    buildBoard();
+    renderBoard();
+    const st = document.getElementById("swapTurn"); if (st) st.onclick=switchTurn;
+    const rs = document.getElementById("resetScore"); if (rs) rs.onclick=()=>{ setScores({A:0,B:0,turn:"A", used:{A:{two:false,double:false,plus20:false,steal:false},B:{two:false,double:false,plus20:false,steal:false}}}); renderScore(); };
+  });
+});
+</script>
+</body></html>
